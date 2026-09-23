@@ -299,6 +299,281 @@
     min-height: 80px; line-height: 1.6; white-space: pre-wrap;
   }
 
+  /* ── ThoughtLine Component (React Bits) ── */
+  .thought-line {
+    --tl-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --tl-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --tl-font: 13.5px;
+    --tl-color: var(--foreground);
+    --tl-glyph: #ff8a5c;
+    --tl-settle: 350ms;
+    --tl-blur: 2px;
+    --tl-shimmer: 1.8s;
+    --tl-done: 0.85;
+    --tl-timer: 0.55;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    color: var(--tl-color);
+    font-family: var(--font-sans);
+    font-size: var(--tl-font);
+    font-weight: 500;
+    line-height: 1.3;
+    background: rgba(32, 31, 30, 0.65);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 15px;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 52px;
+    transition: border-color .25s var(--tl-ease-out), background .25s ease, box-shadow .25s ease;
+  }
+
+  .thought-line[data-working] {
+    border-color: rgba(255, 138, 92, 0.45);
+    background: rgba(40, 36, 32, 0.7);
+    box-shadow: 0 0 20px rgba(255, 138, 92, 0.08);
+  }
+
+  .thought-line[data-error] {
+    border-color: rgba(239, 68, 68, 0.45);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.1);
+  }
+
+  .thought-line__head {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    white-space: nowrap;
+    outline: none;
+    cursor: default;
+    width: 100%;
+  }
+
+  .thought-line__head[data-toggle] {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .thought-line__glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 1.25em;
+    height: 1.25em;
+    margin-right: 0.25em;
+    color: var(--tl-glyph);
+    transition: transform .25s var(--tl-ease-out), opacity .25s ease, color .25s ease;
+  }
+
+  .thought-line[data-working] .thought-line__glyph {
+    animation: thought-glyph-pulse 1.6s var(--tl-ease-in-out) infinite;
+  }
+
+  @keyframes thought-glyph-pulse {
+    0%, 100% { opacity: 0.55; transform: scale(0.92); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+
+  .thought-line__glyph svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .thought-line__dot {
+    width: 0.5em;
+    height: 0.5em;
+    margin: auto;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .thought-line__label {
+    display: inline-grid;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .thought-line__text {
+    grid-area: 1 / 1;
+    width: max-content;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    filter: blur(var(--tl-blur));
+    transition:
+      opacity var(--tl-settle) var(--tl-ease-out),
+      filter var(--tl-settle) var(--tl-ease-out);
+  }
+
+  .thought-line__text[data-active] {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  .thought-line__text--done[data-active] {
+    opacity: var(--tl-done);
+  }
+
+  .thought-line__breath {
+    display: inline-block;
+  }
+
+  .thought-line[data-working] .thought-line__breath[data-shimmer] {
+    background: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.45) 25%,
+      #ff8a5c 50%,
+      rgba(255, 255, 255, 0.45) 75%
+    );
+    background-size: 250% 100%;
+    background-position: 125% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: thought-line-shimmer var(--tl-shimmer) linear infinite;
+  }
+
+  @keyframes thought-line-shimmer {
+    to {
+      background-position: -125% 0;
+    }
+  }
+
+  .thought-line__timer {
+    font-variant-numeric: tabular-nums;
+    opacity: var(--tl-timer);
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    margin-left: auto;
+    padding-left: 8px;
+    color: var(--muted-fg);
+    transition:
+      opacity var(--tl-settle) ease,
+      transform var(--tl-settle) var(--tl-ease-in-out);
+  }
+
+  .thought-line__timer[data-done] {
+    opacity: var(--tl-done);
+    color: #10b981;
+  }
+
+  .thought-line__chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.35em;
+    opacity: 0.55;
+    color: var(--muted-fg);
+    transition:
+      opacity 200ms ease,
+      transform 200ms var(--tl-ease-out);
+  }
+
+  .thought-line[data-open] .thought-line__chevron {
+    transform: rotate(180deg);
+  }
+
+  .thought-line__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .thought-line__trace {
+    display: grid;
+    grid-template-rows: 0fr;
+    width: 100%;
+    transition: grid-template-rows var(--tl-settle) var(--tl-ease-out);
+  }
+
+  .thought-line[data-open] .thought-line__trace {
+    grid-template-rows: 1fr;
+  }
+
+  .thought-line__fold {
+    min-height: 0;
+    overflow-x: visible;
+    overflow-y: clip;
+  }
+
+  .thought-line__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    width: 100%;
+    padding: 0.75em 0 0.1em 1.7em;
+    font-size: 0.85em;
+    font-weight: 400;
+  }
+
+  .thought-line__step {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      opacity 200ms var(--tl-ease-out),
+      transform 200ms var(--tl-ease-out);
+  }
+
+  .thought-line__mark {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 1em;
+    height: 1em;
+    opacity: 0.8;
+    color: #10b981;
+  }
+
+  .thought-line__pulse {
+    display: block;
+    width: 0.45em;
+    height: 0.45em;
+    border-radius: 50%;
+    background: var(--tl-glyph);
+    animation: thought-line-pulse 1.6s var(--tl-ease-in-out) infinite;
+  }
+
+  @keyframes thought-line-pulse {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(0.85);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+  }
+
+  .thought-line__step-text {
+    transition: opacity var(--tl-settle) ease;
+    color: var(--foreground);
+    opacity: 0.9;
+  }
+
+  .thought-line__step[data-done] .thought-line__step-text {
+    opacity: 0.6;
+  }
+
   .howto-content {
     padding: 16px 20px 20px; font-size: 13px; color: var(--muted-fg); line-height: 1.6;
     border-top: 1px solid var(--border);
@@ -886,14 +1161,50 @@
         </div>
         <div class="divider"></div>
         <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div class="label">Status</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="label" style="text-transform:uppercase;letter-spacing:0.05em;font-size:11px;font-weight:700">Status</div>
             <span style="font-size:11px;color:var(--muted-fg);display:flex;align-items:center;gap:4px">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               Live
             </span>
           </div>
-          <div class="status-mono" id="status-box">Idle — waiting for your next action.</div>
+
+          <div id="thought-line" class="thought-line" style="--tl-font:13.5px;--tl-color:var(--foreground);--tl-glyph:#ff8a5c;--tl-settle:350ms;--tl-blur:2px;--tl-shimmer:1.8s;width:100%">
+            <button type="button" class="thought-line__head" data-toggle aria-expanded="true" onclick="toggleThoughtTrace()">
+              <span class="thought-line__glyph" aria-hidden="true" id="thought-glyph">
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.5-6.5l-2.5 2.5m-8 8l-2.5 2.5m13 0l-2.5-2.5m-8-8L4 5"/>
+                </svg>
+              </span>
+              <span class="thought-line__label" aria-hidden="true">
+                <span class="thought-line__text" data-active id="thought-work-wrap">
+                  <span class="thought-line__breath" id="thought-label">
+                    Idle — waiting for your next action.
+                  </span>
+                </span>
+                <span class="thought-line__text thought-line__text--done" id="thought-done-wrap">
+                  <span id="thought-done-label">Done</span>
+                </span>
+              </span>
+              <span class="thought-line__timer" id="thought-timer" aria-hidden="true" style="display:none">
+                0.0s
+              </span>
+              <span class="thought-line__chevron" id="thought-chevron" data-on aria-hidden="true" style="display:none">
+                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 9l-7 7-7-7"/>
+                </svg>
+              </span>
+              <span class="thought-line__sr" role="status" id="thought-sr">Idle — waiting for your next action.</span>
+            </button>
+
+            <div class="thought-line__trace" id="thought-trace" aria-hidden="true">
+              <div class="thought-line__fold">
+                <div class="thought-line__steps" id="thought-steps"></div>
+              </div>
+            </div>
+          </div>
+          <!-- Hidden fallback element for any legacy script selectors -->
+          <div class="status-mono" id="status-box" style="display:none">Idle — waiting for your next action.</div>
         </div>
       </div>
 
@@ -2111,9 +2422,143 @@
     };
   }
 
-  // ── Status box ─────────────────────────────────────────────────────────────────
+  // ── ThoughtLine Controller (React Bits Component) ─────────────────────────────
+  let _thoughtTimerId = null;
+  let _thoughtStart = 0;
+  let _thoughtIsOpen = false;
+  let _thoughtSteps = [];
+
+  function toggleThoughtTrace() {
+    const tl = document.getElementById('thought-line');
+    if (!tl || !_thoughtSteps.length) return;
+    _thoughtIsOpen = !_thoughtIsOpen;
+    if (_thoughtIsOpen) tl.setAttribute('data-open', '');
+    else tl.removeAttribute('data-open');
+  }
+
+  function setThoughtLine({ working = false, label = '', doneLabel = '', steps = [], done = false, error = false }) {
+    const tl = document.getElementById('thought-line');
+    const labelEl = document.getElementById('thought-label');
+    const doneLabelEl = document.getElementById('thought-done-label');
+    const workWrap = document.getElementById('thought-work-wrap');
+    const doneWrap = document.getElementById('thought-done-wrap');
+    const timerEl = document.getElementById('thought-timer');
+    const chevronEl = document.getElementById('thought-chevron');
+    const stepsEl = document.getElementById('thought-steps');
+    const srEl = document.getElementById('thought-sr');
+    const glyphEl = document.getElementById('thought-glyph');
+
+    if (!tl) return;
+
+    if (error) {
+      tl.removeAttribute('data-working');
+      tl.setAttribute('data-error', '');
+      workWrap?.setAttribute('data-active', '');
+      doneWrap?.removeAttribute('data-active');
+      labelEl?.removeAttribute('data-shimmer');
+      if (labelEl) labelEl.textContent = label;
+      if (timerEl) timerEl.style.display = 'none';
+      if (glyphEl) glyphEl.style.color = '#ef4444';
+      if (_thoughtTimerId) { clearInterval(_thoughtTimerId); _thoughtTimerId = null; }
+    } else if (working) {
+      tl.removeAttribute('data-error');
+      tl.setAttribute('data-working', '');
+      workWrap?.setAttribute('data-active', '');
+      doneWrap?.removeAttribute('data-active');
+      labelEl?.setAttribute('data-shimmer', '');
+      if (label && labelEl) labelEl.textContent = label;
+      if (timerEl) {
+        timerEl.style.display = 'inline-block';
+        timerEl.removeAttribute('data-done');
+      }
+      if (!_thoughtTimerId) {
+        _thoughtStart = performance.now();
+        _thoughtTimerId = setInterval(() => {
+          const ds = Math.floor((performance.now() - _thoughtStart) / 100);
+          if (timerEl) timerEl.textContent = ds < 600 ? `${(ds / 10).toFixed(1)}s` : `${Math.floor(ds / 600)}m ${((ds % 600) / 10).toFixed(1)}s`;
+        }, 100);
+      }
+      if (glyphEl) glyphEl.style.color = 'var(--tl-glyph)';
+    } else {
+      tl.removeAttribute('data-working');
+      tl.removeAttribute('data-error');
+      if (_thoughtTimerId) {
+        clearInterval(_thoughtTimerId);
+        _thoughtTimerId = null;
+      }
+      if (done) {
+        workWrap?.removeAttribute('data-active');
+        doneWrap?.setAttribute('data-active', '');
+        labelEl?.removeAttribute('data-shimmer');
+        if (doneLabel && doneLabelEl) doneLabelEl.textContent = doneLabel;
+        if (timerEl) {
+          timerEl.setAttribute('data-done', '');
+        }
+        if (glyphEl) glyphEl.style.color = '#10b981';
+      } else {
+        // Idle
+        workWrap?.setAttribute('data-active', '');
+        doneWrap?.removeAttribute('data-active');
+        labelEl?.removeAttribute('data-shimmer');
+        if (label && labelEl) labelEl.textContent = label;
+        if (timerEl) timerEl.style.display = 'none';
+        if (glyphEl) glyphEl.style.color = 'var(--muted-fg)';
+      }
+    }
+
+    // Render Steps
+    _thoughtSteps = steps || [];
+    if (steps && steps.length > 0) {
+      if (chevronEl) chevronEl.style.display = 'inline-flex';
+      tl.setAttribute('data-open', '');
+      _thoughtIsOpen = true;
+      if (stepsEl) {
+        stepsEl.innerHTML = steps.map((s, i) => {
+          const isDone = !working || i < steps.length - 1;
+          const tickSvg = `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>`;
+          const mark = isDone ? tickSvg : `<i class="thought-line__pulse"></i>`;
+          return `<div class="thought-line__step" ${isDone ? 'data-done' : ''}><span class="thought-line__mark" aria-hidden="true">${mark}</span><span class="thought-line__step-text">${esc(s)}</span></div>`;
+        }).join('');
+      }
+    } else {
+      if (chevronEl) chevronEl.style.display = 'none';
+      tl.removeAttribute('data-open');
+      _thoughtIsOpen = false;
+      if (stepsEl) stepsEl.innerHTML = '';
+    }
+
+    if (srEl) srEl.textContent = label || doneLabel;
+  }
+
+  // ── Status box bridge ───────────────────────────────────────────────────────────
   function setStatus(msg) {
-    document.getElementById('status-box').textContent = msg;
+    const sb = document.getElementById('status-box');
+    if (sb) sb.textContent = msg;
+
+    const lower = (msg || '').toLowerCase();
+    if (!msg || lower.includes('idle')) {
+      setThoughtLine({ working: false, done: false, label: 'Idle — waiting for your next action.', steps: [] });
+    } else if (lower.startsWith('error')) {
+      setThoughtLine({ working: false, error: true, label: msg, steps: [] });
+    } else if (msg.startsWith('✅') || lower.includes('ready') || lower.includes('regenerated')) {
+      setThoughtLine({ working: false, done: true, doneLabel: msg, steps: _thoughtSteps });
+    } else if (lower.includes('generating audio') || lower.includes('audio progress')) {
+      setThoughtLine({
+        working: true,
+        label: msg,
+        steps: ['Analyzing dialogue script', 'Connecting to ElevenLabs API', 'Synthesizing voice clips in parallel', 'Concatenating full master audio track']
+      });
+    } else if (lower.includes('building video') || lower.includes('encoding') || lower.includes('shortening')) {
+      setThoughtLine({
+        working: true,
+        label: msg,
+        steps: ['Rendering high-res chat bubbles', 'Compositing background gameplay stream', 'Hardware accelerated video encoding', 'Finalizing instant download package']
+      });
+    } else if (lower.includes('saving') || lower.includes('saved')) {
+      setThoughtLine({ working: false, done: true, doneLabel: msg, steps: [] });
+    } else {
+      setThoughtLine({ working: false, done: false, label: msg, steps: [] });
+    }
   }
 
   // ── Audio generation ───────────────────────────────────────────────────────────
@@ -2910,7 +3355,9 @@
       const sb = document.getElementById('status-box');
       if (sb && !sb.textContent.startsWith('Error')) {
         const prev = sb.textContent;
-        if (!prev.includes('(auto-saved)')) sb.textContent = prev + ' (auto-saved)';
+        if (!prev.includes('(auto-saved)')) {
+          setStatus(prev + ' (auto-saved)');
+        }
       }
     }, 3000);
   }
