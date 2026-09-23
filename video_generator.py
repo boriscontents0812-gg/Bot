@@ -5,10 +5,6 @@ import uuid
 import json
 import math
 import shutil
-from PIL import Image
-import imageio_ffmpeg
-from renderer import render_preview_image
-
 if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
     VIDEOS_DIR = "/tmp/data/videos"
 else:
@@ -19,10 +15,18 @@ try:
 except Exception:
     pass
 
-try:
-    FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
-except Exception:
-    FFMPEG_EXE = shutil.which("ffmpeg") or "ffmpeg"
+FFMPEG_EXE = None
+
+def get_ffmpeg():
+    global FFMPEG_EXE
+    if FFMPEG_EXE:
+        return FFMPEG_EXE
+    try:
+        import imageio_ffmpeg
+        FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        FFMPEG_EXE = shutil.which("ffmpeg") or "ffmpeg"
+    return FFMPEG_EXE
 
 video_jobs = {}
 
@@ -92,7 +96,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
         # Build FFmpeg command
         # If gameplay video exists, chroma key the green (#00FF00) frame over gameplay
         # If not, simply render the green frame or solid background
-        cmd = [FFMPEG_EXE, '-y']
+        cmd = [get_ffmpeg(), '-y']
 
         if gameplay_path:
             # Input 0: gameplay video (stream loop)
@@ -137,7 +141,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
             print("FFmpeg error:", proc.stderr.decode('utf-8', errors='ignore')[-500:])
             # Fallback simple render if complex filter failed
             simple_cmd = [
-                FFMPEG_EXE, '-y',
+                get_ffmpeg(), '-y',
                 '-loop', '1', '-i', frame_path,
                 '-t', str(total_duration_s),
                 '-c:v', 'libx264',

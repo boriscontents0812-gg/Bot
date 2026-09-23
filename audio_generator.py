@@ -55,12 +55,40 @@ def concat_wav_files(wav_list, output_filepath):
             for d in data:
                 f.writeframes(d)
 
-async def synthesize_clip(text, voice_name, eleven_key, model_id='eleven_multilingual_v2', stability=0.25, similarity=0.7, speed=1.0):
+VOICE_MAP = {
+    "rachel": "21m00Tcm4TlvDq8ikWAM",
+    "sarah": "EXAVITQu4vr4xnSDxMaL",
+    "laura": "FGY2WhTYpPnrIDTdsKH5",
+    "charlie": "IKne3meq5aSn9XLyUdCD",
+    "george": "JBFqnCBsd6RMkjVDRZzb",
+    "callum": "N2lVS1w4EtoT3dr4eOWO",
+    "river": "SAz9YHcvj6GT2YYXdXww",
+    "harry": "SOYHLrjzK2X1ezoPC6cr",
+    "liam": "TX3LPaxmHKxFdv7VOQHJ",
+    "alice": "Xb7hH8MSUJpSbSDYk0k2",
+    "roger": "CwhRBWXzGAHq8TQ4Fs17",
+    "alex": "CwhRBWXzGAHq8TQ4Fs17",
+    "natasha": "EXAVITQu4vr4xnSDxMaL",
+    "adam": "pNInz6obpgDQGcFmaJgB",
+    "nicole": "piTKgcLEGmPE4e6mEKli",
+    "bill": "pqHfZKP75CvOlQylNhV4",
+}
+
+async def synthesize_clip(text, voice_name, eleven_key, model_id='eleven_multilingual_v2', stability=0.25, similarity=0.7, speed=1.0, side=1):
     if eleven_key and len(eleven_key) > 10:
         # Attempt real ElevenLabs API call
         try:
-            # Voice ID lookup or use default voice
-            voice_id = "21m00Tcm4TlvDq8ikWAM" # Rachel default
+            v_lower = str(voice_name or '').strip().lower()
+            voice_id = VOICE_MAP.get(v_lower)
+            if not voice_id:
+                for k, vid in VOICE_MAP.items():
+                    if k in v_lower:
+                        voice_id = vid
+                        break
+            if not voice_id:
+                # Default side 1 to female (Sarah), side 2 to male (Roger)
+                voice_id = "EXAVITQu4vr4xnSDxMaL" if side == 1 else "CwhRBWXzGAHq8TQ4Fs17"
+
             url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
             headers = {
                 "xi-api-key": eleven_key,
@@ -75,7 +103,7 @@ async def synthesize_clip(text, voice_name, eleven_key, model_id='eleven_multili
                     "speed": speed
                 }
             }
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(url, json=payload, headers=headers)
                 if resp.status_code == 200:
                     word_count = len(text.split())

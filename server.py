@@ -321,15 +321,9 @@ async def generate_audio(request: Request):
     except Exception:
         pass
 
-    audio_progress[key] = {"step": 0, "total": len(messages), "label": "Starting..."}
+    audio_progress[key] = {"step": 0, "total": len(messages), "label": "Generating audio in parallel..."}
 
-    for idx, msg in enumerate(messages):
-        audio_progress[key] = {
-            "step": idx + 1,
-            "total": len(messages),
-            "label": f"Generating clip {idx + 1}/{len(messages)}"
-        }
-        
+    async def process_msg(idx, msg):
         clip_path = os.path.join(user_audio_dir, f"clip_{idx}.wav")
         if msg.get("is_img"):
             dur = 300
@@ -338,16 +332,13 @@ async def generate_audio(request: Request):
                 generate_beep_wav(clip_path, dur, freq=100.0)
             except Exception:
                 pass
-            clips.append({
+            return idx, {
                 "duration_ms": dur,
                 "text": msg["text"],
                 "audio_text": msg["text"],
                 "voice": "__img__",
                 "side": msg["side"]
-            })
-            total_ms += dur
-            wav_paths.append(clip_path)
-            continue
+            }, clip_path, dur
 
         raw_bytes, used_real, dur_ms = await synthesize_clip(
             msg["text"],
@@ -356,7 +347,8 @@ async def generate_audio(request: Request):
             model_id=voice_model,
             stability=voice_stability,
             similarity=voice_similarity,
-            speed=voice_audio_speed
+            speed=voice_audio_speed,
+            side=msg.get("side", 1)
         )
         try:
             with open(clip_path, "wb") as f:
@@ -364,15 +356,19 @@ async def generate_audio(request: Request):
         except Exception as we:
             print("Notice: could not save clip:", we)
 
-        clips.append({
+        return idx, {
             "duration_ms": dur_ms,
             "text": msg["text"],
             "audio_text": msg["text"],
             "voice": msg["name"],
             "side": msg["side"]
-        })
-        total_ms += dur_ms
-        wav_paths.append(clip_path)
+        }, clip_path, dur_ms
+
+    results = await asyncio.gather(*(process_msg(idx, msg) for idx, msg in enumerate(messages)))
+    results.sort(key=lambda x: x[0])
+    clips = [r[1] for r in results]
+    wav_paths = [r[2] for r in results]
+    total_ms = sum(r[3] for r in results)
 
     full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
     try:
@@ -551,6 +547,11 @@ async def generate_video(request: Request):
                     except Exception:
                         pass
                 return v_res
+            elif resp.status_code in (400, 422, 500):
+                try:
+                    return JSONResponse(status_code=resp.status_code, content=resp.json())
+                except Exception:
+                    return Response(status_code=resp.status_code, content=resp.content)
     except httpx.TimeoutException:
         # Video is taking > 45s to encode upstream. Return 202 so client polls /api/last_video seamlessly!
         return JSONResponse(status_code=202, content={
@@ -561,7 +562,15 @@ async def generate_video(request: Request):
     except Exception as e:
         print(f"Notice: Upstream video error: {e}")
 
-    # Fallback to local generation or polling response
+    # On Vercel / serverless: NEVER run local FFmpeg because it will exceed 60s
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return JSONResponse(status_code=202, content={
+            "ok": True,
+            "status": "rendering",
+            "detail": "Video rendering in progress. Polling for completion..."
+        })
+
+    # Local fallback for self-hosted / non-serverless
     user_audio_dir = os.path.join(DATA_DIR, "audio", key)
     full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
     
