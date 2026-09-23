@@ -288,7 +288,10 @@ async def generate_audio(request: Request):
                     )
                     if full_resp.status_code == 200:
                         user_audio_dir = os.path.join(DATA_DIR, "audio", key)
-                        os.makedirs(user_audio_dir, exist_ok=True)
+                        try:
+                            os.makedirs(user_audio_dir, exist_ok=True)
+                        except Exception:
+                            pass
                         with open(os.path.join(user_audio_dir, "audio_full.wav"), "wb") as f:
                             f.write(full_resp.content)
                 except Exception:
@@ -300,10 +303,19 @@ async def generate_audio(request: Request):
         print(f"Notice: Upstream audio fallback active: {e}")
 
     # 2. Local generation
-    with get_db() as conn:
-        user = conn.execute("SELECT * FROM access_keys WHERE code = ?", (key,)).fetchone()
-        eleven_key = user["eleven_key"]
+    try:
+        with get_db() as conn:
+            user_row = conn.execute("SELECT * FROM access_keys WHERE UPPER(code) = ?", (key.upper(),)).fetchone()
+            user = dict(user_row) if user_row else {}
+    except Exception:
+        user = {}
     
+    eleven_key = user.get("eleven_key", "")
+    voice_model = user.get("voice_model") or "eleven_multilingual_v2"
+    voice_stability = user.get("voice_stability") or 0.25
+    voice_similarity = user.get("voice_similarity") or 0.70
+    voice_audio_speed = user.get("voice_audio_speed") or 1.15
+
     _, messages, _ = parse_script(script)
     if not messages:
         raise HTTPException(status_code=400, detail="Script is empty")
@@ -313,7 +325,10 @@ async def generate_audio(request: Request):
     wav_paths = []
     
     user_audio_dir = os.path.join(DATA_DIR, "audio", key)
-    os.makedirs(user_audio_dir, exist_ok=True)
+    try:
+        os.makedirs(user_audio_dir, exist_ok=True)
+    except Exception:
+        pass
 
     audio_progress[key] = {"step": 0, "total": len(messages), "label": "Starting..."}
 
@@ -328,7 +343,10 @@ async def generate_audio(request: Request):
         if msg.get("is_img"):
             dur = 300
             from audio_generator import generate_beep_wav
-            generate_beep_wav(clip_path, dur, freq=100.0)
+            try:
+                generate_beep_wav(clip_path, dur, freq=100.0)
+            except Exception:
+                pass
             clips.append({
                 "duration_ms": dur,
                 "text": msg["text"],
@@ -344,13 +362,16 @@ async def generate_audio(request: Request):
             msg["text"],
             msg["name"],
             eleven_key,
-            model_id=user["voice_model"] or "eleven_multilingual_v2",
-            stability=user["voice_stability"] or 0.25,
-            similarity=user["voice_similarity"] or 0.70,
-            speed=user["voice_audio_speed"] or 1.15
+            model_id=voice_model,
+            stability=voice_stability,
+            similarity=voice_similarity,
+            speed=voice_audio_speed
         )
-        with open(clip_path, "wb") as f:
-            f.write(raw_bytes)
+        try:
+            with open(clip_path, "wb") as f:
+                f.write(raw_bytes)
+        except Exception as we:
+            print("Notice: could not save clip:", we)
 
         clips.append({
             "duration_ms": dur_ms,
@@ -363,12 +384,18 @@ async def generate_audio(request: Request):
         wav_paths.append(clip_path)
 
     full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
-    concat_wav_files(wav_paths, full_audio_path)
+    try:
+        concat_wav_files(wav_paths, full_audio_path)
+    except Exception as ce:
+        print("Notice: could not concat audio files:", ce)
 
     # Unlimited credits: keep credits at 999999999 and credits_used at 0
-    with get_db() as conn:
-        conn.execute("UPDATE access_keys SET credits_remaining = 999999999 WHERE code = ?", (key,))
-        conn.commit()
+    try:
+        with get_db() as conn:
+            conn.execute("UPDATE access_keys SET credits_remaining = 999999999 WHERE UPPER(code) = ?", (key.upper(),))
+            conn.commit()
+    except Exception:
+        pass
 
     audio_progress[key] = {}
     return {
@@ -404,24 +431,40 @@ async def regenerate_clip(request: Request):
     except Exception:
         pass
 
-    with get_db() as conn:
-        user = conn.execute("SELECT * FROM access_keys WHERE code = ?", (key,)).fetchone()
-        eleven_key = user["eleven_key"]
+    try:
+        with get_db() as conn:
+            user_row = conn.execute("SELECT * FROM access_keys WHERE UPPER(code) = ?", (key.upper(),)).fetchone()
+            user = dict(user_row) if user_row else {}
+    except Exception:
+        user = {}
+
+    eleven_key = user.get("eleven_key", "")
+    voice_model = user.get("voice_model") or "eleven_multilingual_v2"
+    voice_stability = user.get("voice_stability") or 0.25
+    voice_similarity = user.get("voice_similarity") or 0.70
+    voice_audio_speed = user.get("voice_audio_speed") or 1.15
 
     user_audio_dir = os.path.join(DATA_DIR, "audio", key)
+    try:
+        os.makedirs(user_audio_dir, exist_ok=True)
+    except Exception:
+        pass
     clip_path = os.path.join(user_audio_dir, f"clip_{clip_index}.wav")
 
     raw_bytes, used_real, dur_ms = await synthesize_clip(
         text,
         "Character",
         eleven_key,
-        model_id=user["voice_model"] or "eleven_multilingual_v2",
-        stability=user["voice_stability"] or 0.25,
-        similarity=user["voice_similarity"] or 0.70,
-        speed=user["voice_audio_speed"] or 1.15
+        model_id=voice_model,
+        stability=voice_stability,
+        similarity=voice_similarity,
+        speed=voice_audio_speed
     )
-    with open(clip_path, "wb") as f:
-        f.write(raw_bytes)
+    try:
+        with open(clip_path, "wb") as f:
+            f.write(raw_bytes)
+    except Exception:
+        pass
 
     return {"ok": True, "duration_ms": dur_ms, "credits_used": 0}
 
@@ -470,7 +513,7 @@ async def generate_video(request: Request):
 
     # 1. Upstream video generation
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
+        async with httpx.AsyncClient(timeout=45.0) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_video",
                 json=payload,
@@ -484,15 +527,22 @@ async def generate_video(request: Request):
                     try:
                         v_file_resp = await client.get(f"{UPSTREAM_BASE}{dl_url}", headers={"Cookie": f"imsg_session={key}"})
                         if v_file_resp.status_code == 200:
+                            try:
+                                os.makedirs(VIDEOS_DIR, exist_ok=True)
+                            except Exception:
+                                pass
                             v_path = os.path.join(VIDEOS_DIR, f"{token}.mp4")
-                            with open(v_path, "wb") as f:
-                                f.write(v_file_resp.content)
-                            with get_db() as conn:
-                                conn.execute('''
-                                    INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
-                                    VALUES (?, ?, ?, ?, ?, ?)
-                                ''', (token, key, f"{token}.mp4", v_path, v_res.get("duration_s", 15.0), time.time()))
-                                conn.commit()
+                            try:
+                                with open(v_path, "wb") as f:
+                                    f.write(v_file_resp.content)
+                                with get_db() as conn:
+                                    conn.execute('''
+                                        INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
+                                        VALUES (?, ?, ?, ?, ?, ?)
+                                    ''', (token, key, f"{token}.mp4", v_path, v_res.get("duration_s", 15.0), time.time()))
+                                    conn.commit()
+                            except Exception as we:
+                                print("Notice: could not save local video file:", we)
                     except Exception:
                         pass
                 return v_res
@@ -506,20 +556,30 @@ async def generate_video(request: Request):
     clips = []
     proj_name = payload.get("project")
     if proj_name:
-        with get_db() as conn:
-            p_row = conn.execute("SELECT data FROM projects WHERE key_code = ? AND name = ?", (key, proj_name)).fetchone()
-            if p_row:
-                p_data = json.loads(p_row["data"])
-                clips = p_data.get("clip_metadata", [])
+        try:
+            with get_db() as conn:
+                p_row = conn.execute("SELECT data FROM projects WHERE UPPER(key_code) = ? AND name = ?", (key.upper(), proj_name)).fetchone()
+                if p_row:
+                    p_data = json.loads(p_row["data"])
+                    clips = p_data.get("clip_metadata", [])
+        except Exception:
+            pass
 
-    res = await generate_video_task(key, payload, clips, full_audio_path)
+    try:
+        res = await generate_video_task(key, payload, clips, full_audio_path)
+    except Exception as e:
+        print(f"Local video error: {e}")
+        return JSONResponse(status_code=500, content={"detail": f"Video render error: {str(e)}"})
     
-    with get_db() as conn:
-        conn.execute('''
-            INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (res["token"], key, f"{res['token']}.mp4", res["filepath"], res["duration_s"], time.time()))
-        conn.commit()
+    try:
+        with get_db() as conn:
+            conn.execute('''
+                INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (res["token"], key, f"{res['token']}.mp4", res["filepath"], res["duration_s"], time.time()))
+            conn.commit()
+    except Exception:
+        pass
 
     return res
 

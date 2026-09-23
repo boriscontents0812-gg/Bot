@@ -78,7 +78,9 @@ async def synthesize_clip(text, voice_name, eleven_key, model_id='eleven_multili
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(url, json=payload, headers=headers)
                 if resp.status_code == 200:
-                    return resp.content, True
+                    word_count = len(text.split())
+                    dur_est = max(600, int(400 + word_count * 320 / speed))
+                    return resp.content, True, dur_est
         except Exception as e:
             print(f"ElevenLabs TTS failed: {e}, falling back to synthetic audio")
 
