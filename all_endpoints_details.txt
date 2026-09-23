@@ -1,0 +1,1853 @@
+
+========================================
+GET /health
+Summary: Health Check
+OperationId: health_check_health_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /
+Summary: Root
+OperationId: root__get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "text/html": {
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /demo
+Summary: Demo Entry
+OperationId: demo_entry_demo_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /demo/exit
+Summary: Demo Exit
+OperationId: demo_exit_demo_exit_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /login
+Summary: Login
+OperationId: login_login_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /logout
+Summary: Logout
+OperationId: logout_logout_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /me
+Summary: Me
+OperationId: me_me_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /api/voice_settings
+Summary: Api Save Voice Settings
+OperationId: api_save_voice_settings_api_voice_settings_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /preview/{page}
+Summary: Preview
+OperationId: preview_preview__page__post
+Parameters:
+[
+  {
+    "name": "page",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "integer",
+      "title": "Page"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+POST /api/generate_audio
+Summary: Api Generate Audio
+OperationId: api_generate_audio_api_generate_audio_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /api/audio/{index}
+Summary: Api Audio Clip
+OperationId: api_audio_clip_api_audio__index__get
+Parameters:
+[
+  {
+    "name": "index",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "integer",
+      "title": "Index"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /api/audio_full
+Summary: Api Audio Full
+OperationId: api_audio_full_api_audio_full_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /api/audio_progress
+Summary: Api Audio Progress
+OperationId: api_audio_progress_api_audio_progress_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /api/estimate_render_time
+Summary: Api Estimate Render Time
+OperationId: api_estimate_render_time_api_estimate_render_time_get
+Parameters:
+[
+  {
+    "name": "msg_count",
+    "in": "query",
+    "required": false,
+    "schema": {
+      "type": "integer",
+      "default": 0,
+      "title": "Msg Count"
+    }
+  },
+  {
+    "name": "animation_mode",
+    "in": "query",
+    "required": false,
+    "schema": {
+      "type": "string",
+      "default": "crop",
+      "title": "Animation Mode"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /api/video_progress
+Summary: Api Video Progress
+OperationId: api_video_progress_api_video_progress_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /api/last_video
+Summary: Api Last Video
+OperationId: api_last_video_api_last_video_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /api/update_audio
+Summary: Api Update Audio
+OperationId: api_update_audio_api_update_audio_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /api/regenerate_clip
+Summary: Api Regenerate Clip
+OperationId: api_regenerate_clip_api_regenerate_clip_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /api/generate_video
+Summary: Api Generate Video
+OperationId: api_generate_video_api_generate_video_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /download/{token}
+Summary: Download Video
+OperationId: download_video_download__token__get
+Parameters:
+[
+  {
+    "name": "token",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Token"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /api/assets/music
+Summary: Api Assets Music
+OperationId: api_assets_music_api_assets_music_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /api/assets/gameplay
+Summary: Api Assets Gameplay
+OperationId: api_assets_gameplay_api_assets_gameplay_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /api/upload/music
+Summary: Upload Music
+OperationId: upload_music_api_upload_music_post
+RequestBody:
+{
+  "content": {
+    "multipart/form-data": {
+      "schema": {
+        "$ref": "#/components/schemas/Body_upload_music_api_upload_music_post"
+      }
+    }
+  },
+  "required": true
+}
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+POST /api/upload/gameplay
+Summary: Upload Gameplay
+OperationId: upload_gameplay_api_upload_gameplay_post
+RequestBody:
+{
+  "content": {
+    "multipart/form-data": {
+      "schema": {
+        "$ref": "#/components/schemas/Body_upload_gameplay_api_upload_gameplay_post"
+      }
+    }
+  },
+  "required": true
+}
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+DELETE /api/upload/music/{filename}
+Summary: Delete Music
+OperationId: delete_music_api_upload_music__filename__delete
+Parameters:
+[
+  {
+    "name": "filename",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Filename"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+DELETE /api/upload/gameplay/{filename}
+Summary: Delete Gameplay
+OperationId: delete_gameplay_api_upload_gameplay__filename__delete
+Parameters:
+[
+  {
+    "name": "filename",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Filename"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+POST /api/contact_photo/{name}
+Summary: Upload Contact Photo
+OperationId: upload_contact_photo_api_contact_photo__name__post
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  },
+  {
+    "name": "style",
+    "in": "query",
+    "required": false,
+    "schema": {
+      "type": "string",
+      "default": "ios",
+      "title": "Style"
+    }
+  }
+]
+RequestBody:
+{
+  "required": true,
+  "content": {
+    "multipart/form-data": {
+      "schema": {
+        "$ref": "#/components/schemas/Body_upload_contact_photo_api_contact_photo__name__post"
+      }
+    }
+  }
+}
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /api/contact_photo/{name}
+Summary: Serve Contact Photo
+OperationId: serve_contact_photo_api_contact_photo__name__get
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  },
+  {
+    "name": "style",
+    "in": "query",
+    "required": false,
+    "schema": {
+      "type": "string",
+      "default": "ios",
+      "title": "Style"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+DELETE /api/contact_photo/{name}
+Summary: Delete Contact Photo
+OperationId: delete_contact_photo_api_contact_photo__name__delete
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  },
+  {
+    "name": "style",
+    "in": "query",
+    "required": false,
+    "schema": {
+      "type": "string",
+      "default": "ios",
+      "title": "Style"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /api/contact_photos
+Summary: List Contact Photos
+OperationId: list_contact_photos_api_contact_photos_get
+Parameters:
+[
+  {
+    "name": "style",
+    "in": "query",
+    "required": false,
+    "schema": {
+      "type": "string",
+      "default": "ios",
+      "title": "Style"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+POST /api/script_image/{name}
+Summary: Upload Script Image
+OperationId: upload_script_image_api_script_image__name__post
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  }
+]
+RequestBody:
+{
+  "required": true,
+  "content": {
+    "multipart/form-data": {
+      "schema": {
+        "$ref": "#/components/schemas/Body_upload_script_image_api_script_image__name__post"
+      }
+    }
+  }
+}
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /api/script_image/{name}
+Summary: Serve Script Image
+OperationId: serve_script_image_api_script_image__name__get
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+DELETE /api/script_image/{name}
+Summary: Delete Script Image
+OperationId: delete_script_image_api_script_image__name__delete
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /api/projects
+Summary: List Projects
+OperationId: list_projects_api_projects_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /api/projects/create
+Summary: Create Project
+OperationId: create_project_api_projects_create_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /api/projects/{name}/save
+Summary: Save Project
+OperationId: save_project_api_projects__name__save_post
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /api/projects/{name}/load
+Summary: Load Project
+OperationId: load_project_api_projects__name__load_get
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+DELETE /api/projects/{name}
+Summary: Delete Project
+OperationId: delete_project_api_projects__name__delete
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+POST /api/shorten
+Summary: Api Shorten
+OperationId: api_shorten_api_shorten_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /api/eleven_quota
+Summary: Api Eleven Quota
+OperationId: api_eleven_quota_api_eleven_quota_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /api/eleven_profiles
+Summary: List Eleven Profiles
+OperationId: list_eleven_profiles_api_eleven_profiles_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /api/eleven_profiles
+Summary: Save Eleven Profile
+OperationId: save_eleven_profile_api_eleven_profiles_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+DELETE /api/eleven_profiles/{name}
+Summary: Delete Eleven Profile
+OperationId: delete_eleven_profile_api_eleven_profiles__name__delete
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+POST /api/eleven_profiles/{name}/activate
+Summary: Activate Eleven Profile
+OperationId: activate_eleven_profile_api_eleven_profiles__name__activate_post
+Parameters:
+[
+  {
+    "name": "name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Name"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+POST /api/eleven_key
+Summary: Save Eleven Key
+OperationId: save_eleven_key_api_eleven_key_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /admin
+Summary: Admin Page
+OperationId: admin_page_admin_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "text/html": {
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
+
+========================================
+POST /admin/login
+Summary: Admin Login
+OperationId: admin_login_admin_login_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /admin/logout
+Summary: Admin Logout
+OperationId: admin_logout_admin_logout_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys
+Summary: Admin List Keys
+OperationId: admin_list_keys_admin_keys_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/dashboard
+Summary: Admin Dashboard
+OperationId: admin_dashboard_admin_dashboard_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/active-videos
+Summary: Admin Active Videos
+OperationId: admin_active_videos_admin_active_videos_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/server-health
+Summary: Admin Server Health
+OperationId: admin_server_health_admin_server_health_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys/export
+Summary: Admin Export Keys
+OperationId: admin_export_keys_admin_keys_export_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /admin/keys/create
+Summary: Admin Create Key
+OperationId: admin_create_key_admin_keys_create_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /admin/keys/credits
+Summary: Admin Edit Credits
+OperationId: admin_edit_credits_admin_keys_credits_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /admin/keys/deactivate
+Summary: Admin Deactivate Key
+OperationId: admin_deactivate_key_admin_keys_deactivate_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /admin/keys/reactivate
+Summary: Admin Reactivate Key
+OperationId: admin_reactivate_key_admin_keys_reactivate_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+POST /admin/keys/extend
+Summary: Admin Extend Key
+OperationId: admin_extend_key_admin_keys_extend_post
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+DELETE /admin/keys/{code}
+Summary: Admin Delete Key
+OperationId: admin_delete_key_admin_keys__code__delete
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys/{code}/files
+Summary: Admin List User Files
+OperationId: admin_list_user_files_admin_keys__code__files_get
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys/{code}/files/{category}/{filename}
+Summary: Admin Download User File
+OperationId: admin_download_user_file_admin_keys__code__files__category___filename__get
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  },
+  {
+    "name": "category",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Category"
+    }
+  },
+  {
+    "name": "filename",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Filename"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+DELETE /admin/keys/{code}/files/{category}/{filename}
+Summary: Admin Delete User File
+OperationId: admin_delete_user_file_admin_keys__code__files__category___filename__delete
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  },
+  {
+    "name": "category",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Category"
+    }
+  },
+  {
+    "name": "filename",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Filename"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys/{code}/projects/{project_name}/script.txt
+Summary: Admin Download Project Script
+OperationId: admin_download_project_script_admin_keys__code__projects__project_name__script_txt_get
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  },
+  {
+    "name": "project_name",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Project Name"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys/{code}/eleven_key
+Summary: Admin Get Eleven Key
+OperationId: admin_get_eleven_key_admin_keys__code__eleven_key_get
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys/{code}/history
+Summary: Admin Credit History
+OperationId: admin_credit_history_admin_keys__code__history_get
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys/{code}/usage
+Summary: Admin User Usage
+OperationId: admin_user_usage_admin_keys__code__usage_get
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/keys/{code}/videos
+Summary: Admin User Videos
+OperationId: admin_user_videos_admin_keys__code__videos_get
+Parameters:
+[
+  {
+    "name": "code",
+    "in": "path",
+    "required": true,
+    "schema": {
+      "type": "string",
+      "title": "Code"
+    }
+  }
+]
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  },
+  "422": {
+    "description": "Validation Error",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+      }
+    }
+  }
+}
+
+========================================
+GET /admin/logs
+Summary: Admin Video Logs
+OperationId: admin_video_logs_admin_logs_get
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}
+
+========================================
+DELETE /admin/logs
+Summary: Admin Delete Logs
+OperationId: admin_delete_logs_admin_logs_delete
+Responses:
+{
+  "200": {
+    "description": "Successful Response",
+    "content": {
+      "application/json": {
+        "schema": {}
+      }
+    }
+  }
+}

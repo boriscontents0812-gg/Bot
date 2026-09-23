@@ -1,0 +1,920 @@
+{
+  "/health": {
+    "get": {
+      "operationId": "health_check_health_get",
+      "summary": "Health Check",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/": {
+    "get": {
+      "operationId": "root__get",
+      "summary": "Root",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/demo": {
+    "get": {
+      "operationId": "demo_entry_demo_get",
+      "summary": "Demo Entry",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/demo/exit": {
+    "get": {
+      "operationId": "demo_exit_demo_exit_get",
+      "summary": "Demo Exit",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/login": {
+    "post": {
+      "operationId": "login_login_post",
+      "summary": "Login",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/logout": {
+    "post": {
+      "operationId": "logout_logout_post",
+      "summary": "Logout",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/me": {
+    "get": {
+      "operationId": "me_me_get",
+      "summary": "Me",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/voice_settings": {
+    "post": {
+      "operationId": "api_save_voice_settings_api_voice_settings_post",
+      "summary": "Api Save Voice Settings",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/preview/{page}": {
+    "post": {
+      "operationId": "preview_preview__page__post",
+      "summary": "Preview",
+      "parameters": [
+        {
+          "name": "page",
+          "in": "path",
+          "required": true,
+          "type": "integer"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/generate_audio": {
+    "post": {
+      "operationId": "api_generate_audio_api_generate_audio_post",
+      "summary": "Api Generate Audio",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/audio/{index}": {
+    "get": {
+      "operationId": "api_audio_clip_api_audio__index__get",
+      "summary": "Api Audio Clip",
+      "parameters": [
+        {
+          "name": "index",
+          "in": "path",
+          "required": true,
+          "type": "integer"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/audio_full": {
+    "get": {
+      "operationId": "api_audio_full_api_audio_full_get",
+      "summary": "Api Audio Full",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/audio_progress": {
+    "get": {
+      "operationId": "api_audio_progress_api_audio_progress_get",
+      "summary": "Api Audio Progress",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/estimate_render_time": {
+    "get": {
+      "operationId": "api_estimate_render_time_api_estimate_render_time_get",
+      "summary": "Api Estimate Render Time",
+      "parameters": [
+        {
+          "name": "msg_count",
+          "in": "query",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "animation_mode",
+          "in": "query",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/video_progress": {
+    "get": {
+      "operationId": "api_video_progress_api_video_progress_get",
+      "summary": "Api Video Progress",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/last_video": {
+    "get": {
+      "operationId": "api_last_video_api_last_video_get",
+      "summary": "Api Last Video",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/update_audio": {
+    "post": {
+      "operationId": "api_update_audio_api_update_audio_post",
+      "summary": "Api Update Audio",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/regenerate_clip": {
+    "post": {
+      "operationId": "api_regenerate_clip_api_regenerate_clip_post",
+      "summary": "Api Regenerate Clip",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/generate_video": {
+    "post": {
+      "operationId": "api_generate_video_api_generate_video_post",
+      "summary": "Api Generate Video",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/download/{token}": {
+    "get": {
+      "operationId": "download_video_download__token__get",
+      "summary": "Download Video",
+      "parameters": [
+        {
+          "name": "token",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/assets/music": {
+    "get": {
+      "operationId": "api_assets_music_api_assets_music_get",
+      "summary": "Api Assets Music",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/assets/gameplay": {
+    "get": {
+      "operationId": "api_assets_gameplay_api_assets_gameplay_get",
+      "summary": "Api Assets Gameplay",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/upload/music": {
+    "post": {
+      "operationId": "upload_music_api_upload_music_post",
+      "summary": "Upload Music",
+      "requestBody": [
+        "multipart/form-data"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/upload/gameplay": {
+    "post": {
+      "operationId": "upload_gameplay_api_upload_gameplay_post",
+      "summary": "Upload Gameplay",
+      "requestBody": [
+        "multipart/form-data"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/upload/music/{filename}": {
+    "delete": {
+      "operationId": "delete_music_api_upload_music__filename__delete",
+      "summary": "Delete Music",
+      "parameters": [
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/upload/gameplay/{filename}": {
+    "delete": {
+      "operationId": "delete_gameplay_api_upload_gameplay__filename__delete",
+      "summary": "Delete Gameplay",
+      "parameters": [
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/contact_photo/{name}": {
+    "post": {
+      "operationId": "upload_contact_photo_api_contact_photo__name__post",
+      "summary": "Upload Contact Photo",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "style",
+          "in": "query",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "requestBody": [
+        "multipart/form-data"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    "get": {
+      "operationId": "serve_contact_photo_api_contact_photo__name__get",
+      "summary": "Serve Contact Photo",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "style",
+          "in": "query",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    "delete": {
+      "operationId": "delete_contact_photo_api_contact_photo__name__delete",
+      "summary": "Delete Contact Photo",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "style",
+          "in": "query",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/contact_photos": {
+    "get": {
+      "operationId": "list_contact_photos_api_contact_photos_get",
+      "summary": "List Contact Photos",
+      "parameters": [
+        {
+          "name": "style",
+          "in": "query",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/script_image/{name}": {
+    "post": {
+      "operationId": "upload_script_image_api_script_image__name__post",
+      "summary": "Upload Script Image",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "requestBody": [
+        "multipart/form-data"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    "get": {
+      "operationId": "serve_script_image_api_script_image__name__get",
+      "summary": "Serve Script Image",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    "delete": {
+      "operationId": "delete_script_image_api_script_image__name__delete",
+      "summary": "Delete Script Image",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/projects": {
+    "get": {
+      "operationId": "list_projects_api_projects_get",
+      "summary": "List Projects",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/projects/create": {
+    "post": {
+      "operationId": "create_project_api_projects_create_post",
+      "summary": "Create Project",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/projects/{name}/save": {
+    "post": {
+      "operationId": "save_project_api_projects__name__save_post",
+      "summary": "Save Project",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/projects/{name}/load": {
+    "get": {
+      "operationId": "load_project_api_projects__name__load_get",
+      "summary": "Load Project",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/projects/{name}": {
+    "delete": {
+      "operationId": "delete_project_api_projects__name__delete",
+      "summary": "Delete Project",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/shorten": {
+    "post": {
+      "operationId": "api_shorten_api_shorten_post",
+      "summary": "Api Shorten",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/eleven_quota": {
+    "get": {
+      "operationId": "api_eleven_quota_api_eleven_quota_get",
+      "summary": "Api Eleven Quota",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/eleven_profiles": {
+    "get": {
+      "operationId": "list_eleven_profiles_api_eleven_profiles_get",
+      "summary": "List Eleven Profiles",
+      "responses": [
+        "200"
+      ]
+    },
+    "post": {
+      "operationId": "save_eleven_profile_api_eleven_profiles_post",
+      "summary": "Save Eleven Profile",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/api/eleven_profiles/{name}": {
+    "delete": {
+      "operationId": "delete_eleven_profile_api_eleven_profiles__name__delete",
+      "summary": "Delete Eleven Profile",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/eleven_profiles/{name}/activate": {
+    "post": {
+      "operationId": "activate_eleven_profile_api_eleven_profiles__name__activate_post",
+      "summary": "Activate Eleven Profile",
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/api/eleven_key": {
+    "post": {
+      "operationId": "save_eleven_key_api_eleven_key_post",
+      "summary": "Save Eleven Key",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin": {
+    "get": {
+      "operationId": "admin_page_admin_get",
+      "summary": "Admin Page",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/login": {
+    "post": {
+      "operationId": "admin_login_admin_login_post",
+      "summary": "Admin Login",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/logout": {
+    "post": {
+      "operationId": "admin_logout_admin_logout_post",
+      "summary": "Admin Logout",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/keys": {
+    "get": {
+      "operationId": "admin_list_keys_admin_keys_get",
+      "summary": "Admin List Keys",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/dashboard": {
+    "get": {
+      "operationId": "admin_dashboard_admin_dashboard_get",
+      "summary": "Admin Dashboard",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/active-videos": {
+    "get": {
+      "operationId": "admin_active_videos_admin_active_videos_get",
+      "summary": "Admin Active Videos",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/server-health": {
+    "get": {
+      "operationId": "admin_server_health_admin_server_health_get",
+      "summary": "Admin Server Health",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/keys/export": {
+    "get": {
+      "operationId": "admin_export_keys_admin_keys_export_get",
+      "summary": "Admin Export Keys",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/keys/create": {
+    "post": {
+      "operationId": "admin_create_key_admin_keys_create_post",
+      "summary": "Admin Create Key",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/keys/credits": {
+    "post": {
+      "operationId": "admin_edit_credits_admin_keys_credits_post",
+      "summary": "Admin Edit Credits",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/keys/deactivate": {
+    "post": {
+      "operationId": "admin_deactivate_key_admin_keys_deactivate_post",
+      "summary": "Admin Deactivate Key",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/keys/reactivate": {
+    "post": {
+      "operationId": "admin_reactivate_key_admin_keys_reactivate_post",
+      "summary": "Admin Reactivate Key",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/keys/extend": {
+    "post": {
+      "operationId": "admin_extend_key_admin_keys_extend_post",
+      "summary": "Admin Extend Key",
+      "responses": [
+        "200"
+      ]
+    }
+  },
+  "/admin/keys/{code}": {
+    "delete": {
+      "operationId": "admin_delete_key_admin_keys__code__delete",
+      "summary": "Admin Delete Key",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/admin/keys/{code}/files": {
+    "get": {
+      "operationId": "admin_list_user_files_admin_keys__code__files_get",
+      "summary": "Admin List User Files",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/admin/keys/{code}/files/{category}/{filename}": {
+    "get": {
+      "operationId": "admin_download_user_file_admin_keys__code__files__category___filename__get",
+      "summary": "Admin Download User File",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    "delete": {
+      "operationId": "admin_delete_user_file_admin_keys__code__files__category___filename__delete",
+      "summary": "Admin Delete User File",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "filename",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/admin/keys/{code}/projects/{project_name}/script.txt": {
+    "get": {
+      "operationId": "admin_download_project_script_admin_keys__code__projects__project_name__script_txt_get",
+      "summary": "Admin Download Project Script",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "project_name",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/admin/keys/{code}/eleven_key": {
+    "get": {
+      "operationId": "admin_get_eleven_key_admin_keys__code__eleven_key_get",
+      "summary": "Admin Get Eleven Key",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/admin/keys/{code}/history": {
+    "get": {
+      "operationId": "admin_credit_history_admin_keys__code__history_get",
+      "summary": "Admin Credit History",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/admin/keys/{code}/usage": {
+    "get": {
+      "operationId": "admin_user_usage_admin_keys__code__usage_get",
+      "summary": "Admin User Usage",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/admin/keys/{code}/videos": {
+    "get": {
+      "operationId": "admin_user_videos_admin_keys__code__videos_get",
+      "summary": "Admin User Videos",
+      "parameters": [
+        {
+          "name": "code",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    }
+  },
+  "/admin/logs": {
+    "get": {
+      "operationId": "admin_video_logs_admin_logs_get",
+      "summary": "Admin Video Logs",
+      "responses": [
+        "200"
+      ]
+    },
+    "delete": {
+      "operationId": "admin_delete_logs_admin_logs_delete",
+      "summary": "Admin Delete Logs",
+      "responses": [
+        "200"
+      ]
+    }
+  }
+}

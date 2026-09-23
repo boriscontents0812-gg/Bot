@@ -1,0 +1,62 @@
+GET        /health
+GET        /
+GET        /demo
+GET        /demo/exit
+POST       /login
+POST       /logout
+GET        /me
+POST       /api/voice_settings
+POST       /preview/{page}
+POST       /api/generate_audio
+GET        /api/audio/{index}
+GET        /api/audio_full
+GET        /api/audio_progress
+GET        /api/estimate_render_time
+GET        /api/video_progress
+GET        /api/last_video
+POST       /api/update_audio
+POST       /api/regenerate_clip
+POST       /api/generate_video
+GET        /download/{token}
+GET        /api/assets/music
+GET        /api/assets/gameplay
+POST       /api/upload/music
+POST       /api/upload/gameplay
+DELETE     /api/upload/music/{filename}
+DELETE     /api/upload/gameplay/{filename}
+POST, GET, DELETE /api/contact_photo/{name}
+GET        /api/contact_photos
+POST, GET, DELETE /api/script_image/{name}
+GET        /api/projects
+POST       /api/projects/create
+POST       /api/projects/{name}/save
+GET        /api/projects/{name}/load
+DELETE     /api/projects/{name}
+POST       /api/shorten
+GET        /api/eleven_quota
+GET, POST  /api/eleven_profiles
+DELETE     /api/eleven_profiles/{name}
+POST       /api/eleven_profiles/{name}/activate
+POST       /api/eleven_key
+GET        /admin
+POST       /admin/login
+POST       /admin/logout
+GET        /admin/keys
+GET        /admin/dashboard
+GET        /admin/active-videos
+GET        /admin/server-health
+GET        /admin/keys/export
+POST       /admin/keys/create
+POST       /admin/keys/credits
+POST       /admin/keys/deactivate
+POST       /admin/keys/reactivate
+POST       /admin/keys/extend
+DELETE     /admin/keys/{code}
+GET        /admin/keys/{code}/files
+GET, DELETE /admin/keys/{code}/files/{category}/{filename}
+GET        /admin/keys/{code}/projects/{project_name}/script.txt
+GET        /admin/keys/{code}/eleven_key
+GET        /admin/keys/{code}/history
+GET        /admin/keys/{code}/usage
+GET        /admin/keys/{code}/videos
+GET, DELETE /admin/logs

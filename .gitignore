@@ -1,0 +1,24 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Ephemeral audio & video generation artifacts
+data/audio/*
+!data/audio/.gitkeep
+data/videos/*
+!data/videos/.gitkeep
+
+# Temp test files
+local_exact_*.jpg
+test_preview_gen*.jpg
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

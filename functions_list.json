@@ -1,0 +1,596 @@
+[
+  {
+    "line": 6,
+    "name": "showDemoModal",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 9,
+    "name": "closeDemoModal",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 17,
+    "name": "esc",
+    "params": "s",
+    "async": false
+  },
+  {
+    "line": 23,
+    "name": "safeJson",
+    "params": "res",
+    "async": true
+  },
+  {
+    "line": 37,
+    "name": "loadMe",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 54,
+    "name": "_applyVoiceSettings",
+    "params": "d",
+    "async": false
+  },
+  {
+    "line": 84,
+    "name": "onVoiceSettingChange",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 105,
+    "name": "fetchQuota",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 121,
+    "name": "loadElevenProfiles",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 143,
+    "name": "onProfileSelect",
+    "params": "name",
+    "async": true
+  },
+  {
+    "line": 151,
+    "name": "saveElevenProfile",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 170,
+    "name": "deleteElevenProfile",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 178,
+    "name": "saveElevenKey",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 193,
+    "name": "_populateSelect",
+    "params": "selId, files",
+    "async": false
+  },
+  {
+    "line": 202,
+    "name": "loadMusicList",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 210,
+    "name": "loadGameplayList",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 218,
+    "name": "deleteSelectedMedia",
+    "params": "type",
+    "async": true
+  },
+  {
+    "line": 237,
+    "name": "uploadMediaFile",
+    "params": "input, type",
+    "async": true
+  },
+  {
+    "line": 274,
+    "name": "doLogout",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 280,
+    "name": "toggleDarkMode",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 293,
+    "name": "parseScript",
+    "params": "text",
+    "async": false
+  },
+  {
+    "line": 327,
+    "name": "getPreviewBody",
+    "params": "page",
+    "async": false
+  },
+  {
+    "line": 382,
+    "name": "refreshPreview",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 408,
+    "name": "updatePreview",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 444,
+    "name": "setTheme",
+    "params": "t",
+    "async": false
+  },
+  {
+    "line": 451,
+    "name": "setWaTheme",
+    "params": "t",
+    "async": false
+  },
+  {
+    "line": 460,
+    "name": "setTab",
+    "params": "btn, t",
+    "async": false
+  },
+  {
+    "line": 468,
+    "name": "navPage",
+    "params": "dir",
+    "async": false
+  },
+  {
+    "line": 475,
+    "name": "toggleHowTo",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 480,
+    "name": "toggleEl",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 487,
+    "name": "toggleDisc",
+    "params": "id",
+    "async": false
+  },
+  {
+    "line": 493,
+    "name": "toggleSwitch",
+    "params": "btn",
+    "async": false
+  },
+  {
+    "line": 495,
+    "name": "onSyncScale",
+    "params": "slider",
+    "async": false
+  },
+  {
+    "line": 509,
+    "name": "fmtTime",
+    "params": "s",
+    "async": false
+  },
+  {
+    "line": 514,
+    "name": "updateUI",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 528,
+    "name": "ccTogglePlay",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 534,
+    "name": "ccSeek",
+    "params": "input",
+    "async": false
+  },
+  {
+    "line": 547,
+    "name": "fmtTime",
+    "params": "s",
+    "async": false
+  },
+  {
+    "line": 552,
+    "name": "updateUI",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 567,
+    "name": "cpTogglePlay",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 573,
+    "name": "cpSeek",
+    "params": "input",
+    "async": false
+  },
+  {
+    "line": 578,
+    "name": "toggleCornerRadius",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 583,
+    "name": "toggleBubbleFade",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 588,
+    "name": "toggleGameplay",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 593,
+    "name": "toggleWaGameplay",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 599,
+    "name": "segClick",
+    "params": "btn",
+    "async": false
+  },
+  {
+    "line": 608,
+    "name": "toggleWaCornerRadius",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 615,
+    "name": "switchStyle",
+    "params": "style, { silent = false } = {}",
+    "async": true
+  },
+  {
+    "line": 652,
+    "name": "getSettings",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 689,
+    "name": "getSettingsWA",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 722,
+    "name": "setStatus",
+    "params": "msg",
+    "async": false
+  },
+  {
+    "line": 730,
+    "name": "doGenerateAudio",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 790,
+    "name": "doUpdateAudio",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 839,
+    "name": "doRegenerateClip",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 883,
+    "name": "loadClip",
+    "params": "index, { autoPlay = true } = {}",
+    "async": false
+  },
+  {
+    "line": 902,
+    "name": "navClip",
+    "params": "dir",
+    "async": false
+  },
+  {
+    "line": 908,
+    "name": "_switchToVideoTab",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 916,
+    "name": "_enableDownload",
+    "params": "url",
+    "async": false
+  },
+  {
+    "line": 941,
+    "name": "_buildVideoPayload",
+    "params": "s",
+    "async": false
+  },
+  {
+    "line": 1007,
+    "name": "doGenerateVideo",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1116,
+    "name": "_updateShortenVisibility",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1123,
+    "name": "doShortenVideo",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1167,
+    "name": "saveSettings",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1181,
+    "name": "loadSettings",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1217,
+    "name": "loadContactPhotoCache",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1224,
+    "name": "uploadContactPhoto",
+    "params": "name",
+    "async": true
+  },
+  {
+    "line": 1250,
+    "name": "deleteContactPhoto",
+    "params": "name",
+    "async": true
+  },
+  {
+    "line": 1260,
+    "name": "parseImageNames",
+    "params": "script",
+    "async": false
+  },
+  {
+    "line": 1272,
+    "name": "loadScriptImageCache",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1276,
+    "name": "updateScriptImages",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1306,
+    "name": "uploadScriptImage",
+    "params": "name",
+    "async": true
+  },
+  {
+    "line": 1326,
+    "name": "deleteScriptImage",
+    "params": "name",
+    "async": true
+  },
+  {
+    "line": 1334,
+    "name": "applySettings",
+    "params": "s",
+    "async": false
+  },
+  {
+    "line": 1448,
+    "name": "_hasUnsavedContent",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1453,
+    "name": "_autoSaveProject",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1468,
+    "name": "_scheduleAutoSave",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1483,
+    "name": "_updateRenderEstimate",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1497,
+    "name": "_clearAllContent",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1526,
+    "name": "loadProjectList",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1544,
+    "name": "onProjectSelect",
+    "params": "val",
+    "async": true
+  },
+  {
+    "line": 1572,
+    "name": "doNewProject",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1589,
+    "name": "_showCreateProjectRow",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1596,
+    "name": "doCreateProjectConfirm",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1620,
+    "name": "doDiscardWork",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1641,
+    "name": "doSaveFirst",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1649,
+    "name": "doSaveAndContinue",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1682,
+    "name": "doConfirmStyleSwitch",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1688,
+    "name": "doCancelStyleSwitch",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1693,
+    "name": "showConfirm",
+    "params": "id",
+    "async": false
+  },
+  {
+    "line": 1702,
+    "name": "hideConfirm",
+    "params": "id",
+    "async": false
+  },
+  {
+    "line": 1707,
+    "name": "doContinueWithoutProject",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1718,
+    "name": "doSaveProject",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1745,
+    "name": "doSaveAsConfirm",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1781,
+    "name": "_showLoadingOverlay",
+    "params": "title, sub",
+    "async": false
+  },
+  {
+    "line": 1794,
+    "name": "_hideLoadingOverlay",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1801,
+    "name": "doLoadProject",
+    "params": "name",
+    "async": true
+  },
+  {
+    "line": 1836,
+    "name": "onDuration",
+    "params": "",
+    "async": false
+  },
+  {
+    "line": 1877,
+    "name": "doDeleteProject",
+    "params": "",
+    "async": true
+  },
+  {
+    "line": 1884,
+    "name": "doDeleteProjectConfirm",
+    "params": "",
+    "async": true
+  }
+]

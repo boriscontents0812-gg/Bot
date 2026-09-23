@@ -1,0 +1,298 @@
+Total paths: 62
+
+=== PATH: /health ===
+  [GET] health_check_health_get
+    Responses: 200
+
+=== PATH: / ===
+  [GET] root__get
+    Responses: 200
+
+=== PATH: /demo ===
+  [GET] demo_entry_demo_get
+    Responses: 200
+
+=== PATH: /demo/exit ===
+  [GET] demo_exit_demo_exit_get
+    Responses: 200
+
+=== PATH: /login ===
+  [POST] login_login_post
+    Responses: 200
+
+=== PATH: /logout ===
+  [POST] logout_logout_post
+    Responses: 200
+
+=== PATH: /me ===
+  [GET] me_me_get
+    Responses: 200
+
+=== PATH: /api/voice_settings ===
+  [POST] api_save_voice_settings_api_voice_settings_post
+    Responses: 200
+
+=== PATH: /preview/{page} ===
+  [POST] preview_preview__page__post
+    Params: page (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/generate_audio ===
+  [POST] api_generate_audio_api_generate_audio_post
+    Responses: 200
+
+=== PATH: /api/audio/{index} ===
+  [GET] api_audio_clip_api_audio__index__get
+    Params: index (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/audio_full ===
+  [GET] api_audio_full_api_audio_full_get
+    Responses: 200
+
+=== PATH: /api/audio_progress ===
+  [GET] api_audio_progress_api_audio_progress_get
+    Responses: 200
+
+=== PATH: /api/estimate_render_time ===
+  [GET] api_estimate_render_time_api_estimate_render_time_get
+    Params: msg_count (query, opt), animation_mode (query, opt)
+    Responses: 200, 422
+
+=== PATH: /api/video_progress ===
+  [GET] api_video_progress_api_video_progress_get
+    Responses: 200
+
+=== PATH: /api/last_video ===
+  [GET] api_last_video_api_last_video_get
+    Responses: 200
+
+=== PATH: /api/update_audio ===
+  [POST] api_update_audio_api_update_audio_post
+    Responses: 200
+
+=== PATH: /api/regenerate_clip ===
+  [POST] api_regenerate_clip_api_regenerate_clip_post
+    Responses: 200
+
+=== PATH: /api/generate_video ===
+  [POST] api_generate_video_api_generate_video_post
+    Responses: 200
+
+=== PATH: /download/{token} ===
+  [GET] download_video_download__token__get
+    Params: token (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/assets/music ===
+  [GET] api_assets_music_api_assets_music_get
+    Responses: 200
+
+=== PATH: /api/assets/gameplay ===
+  [GET] api_assets_gameplay_api_assets_gameplay_get
+    Responses: 200
+
+=== PATH: /api/upload/music ===
+  [POST] upload_music_api_upload_music_post
+    RequestBody: multipart/form-data
+      Schema: {"$ref":"#/components/schemas/Body_upload_music_api_upload_music_post"}
+    Responses: 200, 422
+
+=== PATH: /api/upload/gameplay ===
+  [POST] upload_gameplay_api_upload_gameplay_post
+    RequestBody: multipart/form-data
+      Schema: {"$ref":"#/components/schemas/Body_upload_gameplay_api_upload_gameplay_post"}
+    Responses: 200, 422
+
+=== PATH: /api/upload/music/{filename} ===
+  [DELETE] delete_music_api_upload_music__filename__delete
+    Params: filename (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/upload/gameplay/{filename} ===
+  [DELETE] delete_gameplay_api_upload_gameplay__filename__delete
+    Params: filename (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/contact_photo/{name} ===
+  [POST] upload_contact_photo_api_contact_photo__name__post
+    Params: name (path, req), style (query, opt)
+    RequestBody: multipart/form-data
+      Schema: {"$ref":"#/components/schemas/Body_upload_contact_photo_api_contact_photo__name__post"}
+    Responses: 200, 422
+  [GET] serve_contact_photo_api_contact_photo__name__get
+    Params: name (path, req), style (query, opt)
+    Responses: 200, 422
+  [DELETE] delete_contact_photo_api_contact_photo__name__delete
+    Params: name (path, req), style (query, opt)
+    Responses: 200, 422
+
+=== PATH: /api/contact_photos ===
+  [GET] list_contact_photos_api_contact_photos_get
+    Params: style (query, opt)
+    Responses: 200, 422
+
+=== PATH: /api/script_image/{name} ===
+  [POST] upload_script_image_api_script_image__name__post
+    Params: name (path, req)
+    RequestBody: multipart/form-data
+      Schema: {"$ref":"#/components/schemas/Body_upload_script_image_api_script_image__name__post"}
+    Responses: 200, 422
+  [GET] serve_script_image_api_script_image__name__get
+    Params: name (path, req)
+    Responses: 200, 422
+  [DELETE] delete_script_image_api_script_image__name__delete
+    Params: name (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/projects ===
+  [GET] list_projects_api_projects_get
+    Responses: 200
+
+=== PATH: /api/projects/create ===
+  [POST] create_project_api_projects_create_post
+    Responses: 200
+
+=== PATH: /api/projects/{name}/save ===
+  [POST] save_project_api_projects__name__save_post
+    Params: name (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/projects/{name}/load ===
+  [GET] load_project_api_projects__name__load_get
+    Params: name (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/projects/{name} ===
+  [DELETE] delete_project_api_projects__name__delete
+    Params: name (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/shorten ===
+  [POST] api_shorten_api_shorten_post
+    Responses: 200
+
+=== PATH: /api/eleven_quota ===
+  [GET] api_eleven_quota_api_eleven_quota_get
+    Responses: 200
+
+=== PATH: /api/eleven_profiles ===
+  [GET] list_eleven_profiles_api_eleven_profiles_get
+    Responses: 200
+  [POST] save_eleven_profile_api_eleven_profiles_post
+    Responses: 200
+
+=== PATH: /api/eleven_profiles/{name} ===
+  [DELETE] delete_eleven_profile_api_eleven_profiles__name__delete
+    Params: name (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/eleven_profiles/{name}/activate ===
+  [POST] activate_eleven_profile_api_eleven_profiles__name__activate_post
+    Params: name (path, req)
+    Responses: 200, 422
+
+=== PATH: /api/eleven_key ===
+  [POST] save_eleven_key_api_eleven_key_post
+    Responses: 200
+
+=== PATH: /admin ===
+  [GET] admin_page_admin_get
+    Responses: 200
+
+=== PATH: /admin/login ===
+  [POST] admin_login_admin_login_post
+    Responses: 200
+
+=== PATH: /admin/logout ===
+  [POST] admin_logout_admin_logout_post
+    Responses: 200
+
+=== PATH: /admin/keys ===
+  [GET] admin_list_keys_admin_keys_get
+    Responses: 200
+
+=== PATH: /admin/dashboard ===
+  [GET] admin_dashboard_admin_dashboard_get
+    Responses: 200
+
+=== PATH: /admin/active-videos ===
+  [GET] admin_active_videos_admin_active_videos_get
+    Responses: 200
+
+=== PATH: /admin/server-health ===
+  [GET] admin_server_health_admin_server_health_get
+    Responses: 200
+
+=== PATH: /admin/keys/export ===
+  [GET] admin_export_keys_admin_keys_export_get
+    Responses: 200
+
+=== PATH: /admin/keys/create ===
+  [POST] admin_create_key_admin_keys_create_post
+    Responses: 200
+
+=== PATH: /admin/keys/credits ===
+  [POST] admin_edit_credits_admin_keys_credits_post
+    Responses: 200
+
+=== PATH: /admin/keys/deactivate ===
+  [POST] admin_deactivate_key_admin_keys_deactivate_post
+    Responses: 200
+
+=== PATH: /admin/keys/reactivate ===
+  [POST] admin_reactivate_key_admin_keys_reactivate_post
+    Responses: 200
+
+=== PATH: /admin/keys/extend ===
+  [POST] admin_extend_key_admin_keys_extend_post
+    Responses: 200
+
+=== PATH: /admin/keys/{code} ===
+  [DELETE] admin_delete_key_admin_keys__code__delete
+    Params: code (path, req)
+    Responses: 200, 422
+
+=== PATH: /admin/keys/{code}/files ===
+  [GET] admin_list_user_files_admin_keys__code__files_get
+    Params: code (path, req)
+    Responses: 200, 422
+
+=== PATH: /admin/keys/{code}/files/{category}/{filename} ===
+  [GET] admin_download_user_file_admin_keys__code__files__category___filename__get
+    Params: code (path, req), category (path, req), filename (path, req)
+    Responses: 200, 422
+  [DELETE] admin_delete_user_file_admin_keys__code__files__category___filename__delete
+    Params: code (path, req), category (path, req), filename (path, req)
+    Responses: 200, 422
+
+=== PATH: /admin/keys/{code}/projects/{project_name}/script.txt ===
+  [GET] admin_download_project_script_admin_keys__code__projects__project_name__script_txt_get
+    Params: code (path, req), project_name (path, req)
+    Responses: 200, 422
+
+=== PATH: /admin/keys/{code}/eleven_key ===
+  [GET] admin_get_eleven_key_admin_keys__code__eleven_key_get
+    Params: code (path, req)
+    Responses: 200, 422
+
+=== PATH: /admin/keys/{code}/history ===
+  [GET] admin_credit_history_admin_keys__code__history_get
+    Params: code (path, req)
+    Responses: 200, 422
+
+=== PATH: /admin/keys/{code}/usage ===
+  [GET] admin_user_usage_admin_keys__code__usage_get
+    Params: code (path, req)
+    Responses: 200, 422
+
+=== PATH: /admin/keys/{code}/videos ===
+  [GET] admin_user_videos_admin_keys__code__videos_get
+    Params: code (path, req)
+    Responses: 200, 422
+
+=== PATH: /admin/logs ===
+  [GET] admin_video_logs_admin_logs_get
+    Responses: 200
+  [DELETE] admin_delete_logs_admin_logs_delete
+    Responses: 200
