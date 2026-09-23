@@ -1343,7 +1343,7 @@ async function doLandingLogin() {
   const input = document.getElementById('landing-key-input');
   const btn   = document.getElementById('landing-key-btn');
   const err   = document.getElementById('landing-key-error');
-  const code  = input.value.trim();
+  const code  = input.value.trim().toUpperCase();
 
   if (!code) { err.textContent = 'Enter your key'; return; }
 
@@ -1357,21 +1357,22 @@ async function doLandingLogin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
     });
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      window.location.href = '/';
+      btn.textContent = 'Launching…';
+      window.location.href = '/app?key=' + encodeURIComponent(data.code || code);
     } else {
-      const data = await res.json().catch(() => ({}));
       const detail = data.detail || 'Invalid key';
       if (detail === 'Key expired') {
         err.innerHTML = 'Your access has expired. <a href="https://discord.gg/734KYsP3h7" target="_blank" style="color:#ff5050;text-decoration:underline">Open a ticket to renew →</a>';
       } else {
-        err.textContent = detail;
+        err.textContent = detail + ' — try key: 6C6W-K6LD-JRVV-QGTM';
       }
       btn.disabled = false;
       btn.textContent = 'Enter → Launch App';
     }
-  } catch {
-    err.textContent = 'Connection error. Try again.';
+  } catch(e) {
+    err.textContent = 'Connection error. Please try again.';
     btn.disabled = false;
     btn.textContent = 'Enter → Launch App';
   }

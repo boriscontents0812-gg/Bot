@@ -52,11 +52,18 @@ audio_progress = {}
 def get_current_user_key(request: Request) -> Optional[str]:
     code = request.cookies.get("imsg_session")
     if not code:
+        code = request.query_params.get("key")
+    if not code:
+        auth_hdr = request.headers.get("Authorization", "")
+        if auth_hdr.startswith("Bearer "):
+            code = auth_hdr[7:].strip()
+    if not code:
         return None
+    code = code.strip().upper()
     with get_db() as conn:
-        row = conn.execute("SELECT * FROM access_keys WHERE code = ? AND active = 1", (code,)).fetchone()
+        row = conn.execute("SELECT * FROM access_keys WHERE UPPER(code) = ? AND active = 1", (code,)).fetchone()
         if row:
-            return code
+            return row["code"]
     return None
 
 def require_auth(request: Request) -> str:
@@ -76,12 +83,15 @@ def health_check():
     return {"status": "ok"}
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/app", response_class=HTMLResponse)
 def root(request: Request):
     key = get_current_user_key(request)
     is_demo = request.cookies.get("imsg_demo") == "1"
     
     if key:
-        return templates.TemplateResponse(request=request, name="app.html", context={"is_demo": False, "crossfade_enabled": False})
+        resp = templates.TemplateResponse(request=request, name="app.html", context={"is_demo": False, "crossfade_enabled": False})
+        resp.set_cookie("imsg_session", key, max_age=2592000, path="/", httponly=True, samesite="lax")
+        return resp
     elif is_demo:
         return templates.TemplateResponse(request=request, name="app.html", context={"is_demo": True, "crossfade_enabled": False})
     else:
@@ -102,15 +112,16 @@ def demo_exit():
 @app.post("/login")
 async def login(request: Request):
     data = await request.json()
-    code = data.get("code", "").strip()
+    code = data.get("code", "").strip().upper()
     with get_db() as conn:
-        row = conn.execute("SELECT * FROM access_keys WHERE code = ?", (code,)).fetchone()
+        row = conn.execute("SELECT * FROM access_keys WHERE UPPER(code) = ?", (code,)).fetchone()
         if not row:
             return JSONResponse(status_code=400, content={"detail": "Invalid key"})
         if not row["active"]:
             return JSONResponse(status_code=400, content={"detail": "Key expired"})
+        code = row["code"]
         
-    resp = JSONResponse(content={"ok": True})
+    resp = JSONResponse(content={"ok": True, "code": code})
     resp.set_cookie("imsg_session", code, max_age=2592000, path="/", httponly=True, samesite="lax")
     return resp
 
