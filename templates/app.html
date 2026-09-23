@@ -1416,7 +1416,14 @@
   async function loadMe() {
     if (IS_DEMO) return;
     try {
-      const res = await fetch('/me');
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlKey = urlParams.get('key');
+      if (urlKey) {
+        try { localStorage.setItem('imsg_key', urlKey); } catch(_) {}
+      }
+      const savedKey = urlKey || localStorage.getItem('imsg_key') || '';
+      const headers = savedKey ? { 'Authorization': 'Bearer ' + savedKey } : {};
+      const res = await fetch('/me' + (savedKey ? '?key=' + encodeURIComponent(savedKey) : ''), { headers });
       if (res.status === 401) { window.location.href = '/'; return; }
       const d = await safeJson(res);
       document.getElementById('user-name').textContent = d.discord_name || '—';
@@ -2428,6 +2435,7 @@
     try {
       const s = getSettings();
       const _genStart = Date.now();
+      const oldToken = _currentVideoToken || '';
       const res = await fetch('/api/generate_video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2435,7 +2443,45 @@
       });
       clearInterval(_progressPoll);
       const d = await safeJson(res);
-      if (!res.ok) { setStatus('Error: ' + (d.detail || 'Unknown error')); return; }
+
+      if (!d.token) {
+        // Video is rendering in the background or function returned 202/timeout
+        setStatus('Video is encoding in the background, please wait…');
+        let gotVideo = false;
+        for (let i = 0; i < 180; i++) {
+          await new Promise(r => setTimeout(r, 3000));
+          try {
+            const pr = await fetch('/api/video_progress');
+            if (pr.ok) {
+              const pd = await pr.json();
+              if (pd.active && pd.msg) {
+                const elapsed = pd.elapsed_s || 0;
+                setStatus(`Building video — ${pd.msg} (${elapsed}s elapsed)`);
+              }
+            }
+          } catch(_) {}
+
+          try {
+            const rec = await fetch('/api/last_video');
+            const rd = rec.ok ? await rec.json() : {};
+            if (rd.download_url && rd.token && rd.token !== oldToken) {
+              d.token = rd.token;
+              d.duration_s = rd.duration_s || 0;
+              d.download_url = rd.download_url;
+              gotVideo = true;
+              break;
+            }
+          } catch(_) {}
+        }
+        if (!gotVideo && !d.token) {
+          if (!res.ok && res.status !== 504 && res.status !== 202) {
+            setStatus('Error: ' + (d.detail || 'Unknown error'));
+            return;
+          }
+          setStatus('Video is taking longer than expected. Check "last_video" shortly.');
+          return;
+        }
+      }
 
       _currentVideoToken = d.token;
       _currentVideoDuration = d.duration_s || 0;
@@ -2462,34 +2508,39 @@
       }
       await _autoSaveProject();
     } catch(e) {
-      // Network drop (e.g. mobile screen lock) — video may have finished on the server
-      const isNetworkError = e instanceof TypeError && e.message.toLowerCase().includes('fetch');
-      if (isNetworkError) {
-        setStatus('Connection lost — video is still generating, please wait…');
-        try {
-          for (let i = 0; i < 180; i++) {
-            await new Promise(r => setTimeout(r, 5000));
-            const rec = await fetch('/api/last_video');
-            const rd = rec.ok ? await rec.json() : {};
-            if (rd.download_url) {
-              _currentVideoToken = rd.token;
-              _currentVideoDuration = rd.duration_s || 0;
-              _videoDownloadUrl = rd.download_url;
-              _updateShortenVisibility();
-              _switchToVideoTab();
-              _enableDownload(_videoDownloadUrl);
-              const mins = Math.floor(_currentVideoDuration / 60);
-              const secs = Math.round(_currentVideoDuration % 60);
-              setStatus(`✅ Video ready! ${mins}:${secs.toString().padStart(2,'0')}`);
-              await _autoSaveProject();
-              return;
+      // Network drop or timeout
+      setStatus('Connection interrupted — polling for video completion…');
+      try {
+        for (let i = 0; i < 180; i++) {
+          await new Promise(r => setTimeout(r, 4000));
+          try {
+            const pr = await fetch('/api/video_progress');
+            if (pr.ok) {
+              const pd = await pr.json();
+              if (pd.active && pd.msg) {
+                const elapsed = pd.elapsed_s || 0;
+                setStatus(`Building video — ${pd.msg} (${elapsed}s elapsed)`);
+              }
             }
+          } catch(_) {}
+          const rec = await fetch('/api/last_video');
+          const rd = rec.ok ? await rec.json() : {};
+          if (rd.download_url && rd.token) {
+            _currentVideoToken = rd.token;
+            _currentVideoDuration = rd.duration_s || 0;
+            _videoDownloadUrl = rd.download_url;
+            _updateShortenVisibility();
+            _switchToVideoTab();
+            _enableDownload(_videoDownloadUrl);
+            const mins = Math.floor(_currentVideoDuration / 60);
+            const secs = Math.round(_currentVideoDuration % 60);
+            setStatus(`✅ Video ready! ${mins}:${secs.toString().padStart(2,'0')}`);
+            await _autoSaveProject();
+            return;
           }
-        } catch(_) {}
-        setStatus('Connection lost — video may still be processing, please wait.');
-      } else {
-        setStatus('Error: ' + e.message);
-      }
+        }
+      } catch(_) {}
+      setStatus('Error: ' + e.message);
     } finally {
       clearInterval(_progressPoll);
       btn.disabled = false;

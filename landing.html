@@ -1359,6 +1359,7 @@ async function doLandingLogin() {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
+      try { localStorage.setItem('imsg_key', data.code || code); } catch(_) {}
       btn.textContent = 'Launching…';
       window.location.href = '/app?key=' + encodeURIComponent(data.code || code);
     } else {

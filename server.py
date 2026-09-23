@@ -12,7 +12,7 @@ from typing import Optional, Dict, Any, List
 
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -280,25 +280,16 @@ async def generate_audio(request: Request):
             )
             if resp.status_code == 200:
                 up_res = resp.json()
-                # Download full audio for local caching
-                try:
-                    full_resp = await client.get(
-                        f"{UPSTREAM_BASE}/api/audio_full",
-                        headers={"Cookie": f"imsg_session={key}"}
-                    )
-                    if full_resp.status_code == 200:
-                        user_audio_dir = os.path.join(DATA_DIR, "audio", key)
-                        try:
-                            os.makedirs(user_audio_dir, exist_ok=True)
-                        except Exception:
-                            pass
-                        with open(os.path.join(user_audio_dir, "audio_full.wav"), "wb") as f:
-                            f.write(full_resp.content)
-                except Exception:
-                    pass
                 if isinstance(up_res, dict):
                     up_res["credits_used"] = 0
                 return up_res
+            elif resp.status_code in (400, 422, 500):
+                try:
+                    return JSONResponse(status_code=resp.status_code, content=resp.json())
+                except Exception:
+                    pass
+    except httpx.TimeoutException:
+        print("Notice: Upstream audio timed out at 45s, attempting local generation")
     except Exception as e:
         print(f"Notice: Upstream audio fallback active: {e}")
 
@@ -469,19 +460,45 @@ async def regenerate_clip(request: Request):
     return {"ok": True, "duration_ms": dur_ms, "credits_used": 0}
 
 @app.get("/api/audio/{index}")
-def serve_clip(index: int, request: Request):
+async def serve_clip(index: int, request: Request):
     key = require_auth(request)
     clip_path = os.path.join(DATA_DIR, "audio", key, f"clip_{index}.wav")
     if os.path.exists(clip_path):
         return FileResponse(clip_path, media_type="audio/wav")
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(f"{UPSTREAM_BASE}/api/audio/{index}", headers={"Cookie": f"imsg_session={key}"})
+            if resp.status_code == 200:
+                try:
+                    os.makedirs(os.path.dirname(clip_path), exist_ok=True)
+                    with open(clip_path, "wb") as f:
+                        f.write(resp.content)
+                except Exception:
+                    pass
+                return Response(content=resp.content, media_type="audio/wav")
+    except Exception:
+        pass
     raise HTTPException(status_code=404, detail="Clip not found")
 
 @app.get("/api/audio_full")
-def serve_full_audio(request: Request):
+async def serve_full_audio(request: Request):
     key = require_auth(request)
     full_path = os.path.join(DATA_DIR, "audio", key, "audio_full.wav")
     if os.path.exists(full_path):
         return FileResponse(full_path, media_type="audio/wav")
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            resp = await client.get(f"{UPSTREAM_BASE}/api/audio_full", headers={"Cookie": f"imsg_session={key}"})
+            if resp.status_code == 200:
+                try:
+                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    with open(full_path, "wb") as f:
+                        f.write(resp.content)
+                except Exception:
+                    pass
+                return Response(content=resp.content, media_type="audio/wav")
+    except Exception:
+        pass
     raise HTTPException(status_code=404, detail="Audio not found")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -513,6 +530,7 @@ async def generate_video(request: Request):
 
     # 1. Upstream video generation
     try:
+        # Keep timeout at 45.0s to ensure we never hit Vercel's 60s Serverless limit
         async with httpx.AsyncClient(timeout=45.0) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_video",
@@ -522,34 +540,28 @@ async def generate_video(request: Request):
             if resp.status_code == 200:
                 v_res = resp.json()
                 token = v_res.get("token")
-                dl_url = v_res.get("download_url")
-                if dl_url:
+                if token:
                     try:
-                        v_file_resp = await client.get(f"{UPSTREAM_BASE}{dl_url}", headers={"Cookie": f"imsg_session={key}"})
-                        if v_file_resp.status_code == 200:
-                            try:
-                                os.makedirs(VIDEOS_DIR, exist_ok=True)
-                            except Exception:
-                                pass
-                            v_path = os.path.join(VIDEOS_DIR, f"{token}.mp4")
-                            try:
-                                with open(v_path, "wb") as f:
-                                    f.write(v_file_resp.content)
-                                with get_db() as conn:
-                                    conn.execute('''
-                                        INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
-                                        VALUES (?, ?, ?, ?, ?, ?)
-                                    ''', (token, key, f"{token}.mp4", v_path, v_res.get("duration_s", 15.0), time.time()))
-                                    conn.commit()
-                            except Exception as we:
-                                print("Notice: could not save local video file:", we)
+                        with get_db() as conn:
+                            conn.execute('''
+                                INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            ''', (token, key, f"{token}.mp4", f"/download/{token}", v_res.get("duration_s", 15.0), time.time()))
+                            conn.commit()
                     except Exception:
                         pass
                 return v_res
+    except httpx.TimeoutException:
+        # Video is taking > 45s to encode upstream. Return 202 so client polls /api/last_video seamlessly!
+        return JSONResponse(status_code=202, content={
+            "ok": True,
+            "status": "rendering",
+            "detail": "Video is rendering in background. Polling for completion..."
+        })
     except Exception as e:
-        print(f"Notice: Upstream video fallback active: {e}")
+        print(f"Notice: Upstream video error: {e}")
 
-    # 2. Local generation
+    # Fallback to local generation or polling response
     user_audio_dir = os.path.join(DATA_DIR, "audio", key)
     full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
     
@@ -567,21 +579,20 @@ async def generate_video(request: Request):
 
     try:
         res = await generate_video_task(key, payload, clips, full_audio_path)
-    except Exception as e:
-        print(f"Local video error: {e}")
-        return JSONResponse(status_code=500, content={"detail": f"Video render error: {str(e)}"})
-    
-    try:
         with get_db() as conn:
             conn.execute('''
                 INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (res["token"], key, f"{res['token']}.mp4", res["filepath"], res["duration_s"], time.time()))
             conn.commit()
-    except Exception:
-        pass
-
-    return res
+        return res
+    except Exception as e:
+        print(f"Local video error / fallback: {e}")
+        return JSONResponse(status_code=202, content={
+            "ok": True,
+            "status": "rendering",
+            "detail": "Video rendering in progress. Polling for completion..."
+        })
 
 @app.get("/api/last_video")
 async def get_last_video(request: Request):
@@ -612,16 +623,33 @@ async def download_video(token: str):
     if os.path.exists(video_path):
         return FileResponse(video_path, media_type="video/mp4", filename=f"imessage_video_{token[:8]}.mp4")
     
-    # Try fetching from upstream
+    # Stream directly from upstream with chunking and Range support
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/download/{token}")
-            if resp.status_code == 200:
-                with open(video_path, "wb") as f:
-                    f.write(resp.content)
-                return FileResponse(video_path, media_type="video/mp4", filename=f"imessage_video_{token[:8]}.mp4")
-    except Exception:
-        pass
+        client = httpx.AsyncClient(timeout=60.0)
+        req = client.build_request("GET", f"{UPSTREAM_BASE}/download/{token}")
+        r = await client.send(req, stream=True)
+        if r.status_code in (200, 206):
+            async def stream_content():
+                try:
+                    async for chunk in r.aiter_bytes(chunk_size=65536):
+                        yield chunk
+                finally:
+                    await r.aclose()
+                    await client.aclose()
+
+            headers = {
+                "Content-Disposition": f'attachment; filename="imessage_video_{token[:8]}.mp4"',
+                "Content-Type": r.headers.get("content-type", "video/mp4"),
+            }
+            if "content-length" in r.headers:
+                headers["Content-Length"] = r.headers["content-length"]
+            if "content-range" in r.headers:
+                headers["Content-Range"] = r.headers["content-range"]
+            return StreamingResponse(stream_content(), status_code=r.status_code, headers=headers)
+        await r.aclose()
+        await client.aclose()
+    except Exception as e:
+        print(f"Notice: stream video error: {e}")
 
     raise HTTPException(status_code=404, detail="Video not found")
 
