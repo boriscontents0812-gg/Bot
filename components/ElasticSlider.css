@@ -1,0 +1,120 @@
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  position: relative;
+}
+
+.slider-wrapper {
+  display: flex;
+  width: 100%;
+  touch-action: none;
+  user-select: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.slider-root {
+  position: relative;
+  display: flex;
+  width: 100%;
+  flex-grow: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  align-items: center;
+  padding: 0.75rem 0;
+}
+
+.slider-root:active {
+  cursor: grabbing;
+}
+
+.slider-track-wrapper {
+  display: flex;
+  flex-grow: 1;
+  align-items: center;
+  position: relative;
+  transition: height 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.slider-track {
+  position: relative;
+  height: 6px;
+  width: 100%;
+  flex-grow: 1;
+  overflow: visible;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.slider-range {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #ff4088 0%, #ff8a5c 100%);
+  border-radius: 9999px;
+  transition: width 0.05s ease-out;
+}
+
+.slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff4088;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 12px rgba(255, 64, 136, 0.4);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slider-root:hover .slider-thumb,
+.slider-root:active .slider-thumb {
+  transform: translate(-50%, -50%) scale(1.15);
+  box-shadow: 0 0 0 6px rgba(255, 64, 136, 0.25), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.elastic-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ff8a5c;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.elastic-icon-btn:hover {
+  background: rgba(255, 138, 92, 0.15);
+  border-color: rgba(255, 138, 92, 0.3);
+  color: #ff4088;
+}
+
+.value-indicator {
+  color: #ff8a5c;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.icon {
+  width: 15px;
+  height: 15px;
+  color: inherit;
+}

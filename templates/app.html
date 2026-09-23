@@ -570,8 +570,138 @@
     opacity: 0.9;
   }
 
-  .thought-line__step[data-done] .thought-line__step-text {
-    opacity: 0.6;
+  /* ── ElasticSlider Component (React Bits) ── */
+  .elastic-slider-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    user-select: none;
+    touch-action: none;
+    margin: 4px 0 6px;
+    position: relative;
+  }
+
+  .elastic-slider-root {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    padding: 7px 0;
+    outline: none;
+  }
+
+  .elastic-slider-root[data-dragging] {
+    cursor: grabbing;
+  }
+
+  .elastic-track-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    position: relative;
+    transition: transform 0.05s ease-out;
+    will-change: transform;
+  }
+
+  .elastic-track {
+    position: relative;
+    height: 6px;
+    width: 100%;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+    transition: height 0.2s cubic-bezier(0.23, 1, 0.32, 1), background 0.2s ease;
+  }
+
+  .elastic-slider-root:hover .elastic-track,
+  .elastic-slider-root[data-dragging] .elastic-track {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.13);
+  }
+
+  .elastic-range {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #ff4088 0%, #ff8a5c 100%);
+    border-radius: 9999px;
+    pointer-events: none;
+    transition: width 0.04s ease-out;
+  }
+
+  .elastic-thumb {
+    position: absolute;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ff4088;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 10px rgba(255, 64, 136, 0.4);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.18s ease;
+  }
+
+  .elastic-slider-root:hover .elastic-thumb,
+  .elastic-slider-root[data-dragging] .elastic-thumb {
+    transform: translate(-50%, -50%) scale(1.18);
+    box-shadow: 0 0 0 6px rgba(255, 64, 136, 0.24), 0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .elastic-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #ff8a5c;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    transition: transform 0.05s ease-out, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    will-change: transform;
+    outline: none;
+    padding: 0;
+  }
+
+  .elastic-icon-btn:hover {
+    background: rgba(255, 138, 92, 0.15);
+    border-color: rgba(255, 138, 92, 0.3);
+    color: #ff4088;
+  }
+
+  .elastic-icon-btn:active {
+    transform: scale(0.92);
+  }
+
+  .elastic-icon-btn .icon {
+    width: 14px;
+    height: 14px;
+    color: inherit;
+    display: block;
+  }
+
+  .elastic-hidden-input {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
   .howto-content {
@@ -2561,6 +2691,255 @@
     }
   }
 
+  // ── ElasticSlider Controller (React Bits Component) ───────────────────────────
+  function initElasticSliders() {
+    document.querySelectorAll('input[type="range"].slider').forEach(input => {
+      if (input.closest('.elastic-slider-wrapper')) return;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'elastic-slider-wrapper';
+
+      const btnLeft = document.createElement('button');
+      btnLeft.type = 'button';
+      btnLeft.className = 'elastic-icon-btn elastic-btn-left';
+      btnLeft.setAttribute('aria-label', 'Decrease');
+      btnLeft.tabIndex = -1;
+      btnLeft.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+
+      const btnRight = document.createElement('button');
+      btnRight.type = 'button';
+      btnRight.className = 'elastic-icon-btn elastic-btn-right';
+      btnRight.setAttribute('aria-label', 'Increase');
+      btnRight.tabIndex = -1;
+      btnRight.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+
+      const root = document.createElement('div');
+      root.className = 'elastic-slider-root';
+      root.tabIndex = 0;
+
+      const trackWrap = document.createElement('div');
+      trackWrap.className = 'elastic-track-wrapper';
+
+      const track = document.createElement('div');
+      track.className = 'elastic-track';
+
+      const range = document.createElement('div');
+      range.className = 'elastic-range';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'elastic-thumb';
+
+      track.appendChild(range);
+      track.appendChild(thumb);
+      trackWrap.appendChild(track);
+      root.appendChild(trackWrap);
+
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(btnLeft);
+      wrapper.appendChild(root);
+      wrapper.appendChild(btnRight);
+      root.appendChild(input);
+
+      input.classList.add('elastic-hidden-input');
+
+      const updateDisplay = () => {
+        const min = parseFloat(input.min !== '' ? input.min : '0');
+        const max = parseFloat(input.max !== '' ? input.max : '100');
+        const val = parseFloat(input.value !== '' ? input.value : min);
+        const span = max - min;
+        const pct = span > 0 ? Math.max(0, Math.min(100, ((val - min) / span) * 100)) : 0;
+        range.style.width = pct + '%';
+        thumb.style.left = pct + '%';
+        root.setAttribute('role', 'slider');
+        root.setAttribute('aria-valuemin', min);
+        root.setAttribute('aria-valuemax', max);
+        root.setAttribute('aria-valuenow', val);
+      };
+
+      updateDisplay();
+      input.addEventListener('input', updateDisplay);
+
+      // Intercept programmatic .value assignments so ElasticSlider updates instantly
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+      if (descriptor) {
+        Object.defineProperty(input, 'value', {
+          get: function() { return descriptor.get.call(this); },
+          set: function(v) {
+            descriptor.set.call(this, v);
+            updateDisplay();
+          },
+          configurable: true
+        });
+      }
+
+      // Elastic Physics & Drag Handling
+      const MAX_OVERFLOW = 45;
+      function decay(val, max) {
+        if (max === 0) return 0;
+        const entry = val / max;
+        const sigmoid = 2 * (1 / (1 + Math.exp(-entry)) - 0.5);
+        return sigmoid * max;
+      }
+
+      let isDragging = false;
+      let overflow = 0;
+      let region = 'middle';
+      let animFrame = null;
+
+      function applyPhysics(ov, reg, clientX, rect) {
+        if (!rect || rect.width <= 0) return;
+        if (reg === 'left') {
+          trackWrap.style.transform = `scaleX(${1 + ov / rect.width}) scaleY(${1 - (ov / MAX_OVERFLOW) * 0.22})`;
+          trackWrap.style.transformOrigin = 'right center';
+          btnLeft.style.transform = `translateX(${-ov}px) scale(${1 + (ov / MAX_OVERFLOW) * 0.35})`;
+          btnRight.style.transform = '';
+        } else if (reg === 'right') {
+          trackWrap.style.transform = `scaleX(${1 + ov / rect.width}) scaleY(${1 - (ov / MAX_OVERFLOW) * 0.22})`;
+          trackWrap.style.transformOrigin = 'left center';
+          btnRight.style.transform = `translateX(${ov}px) scale(${1 + (ov / MAX_OVERFLOW) * 0.35})`;
+          btnLeft.style.transform = '';
+        } else {
+          trackWrap.style.transform = '';
+          trackWrap.style.transformOrigin = 'center center';
+          btnLeft.style.transform = '';
+          btnRight.style.transform = '';
+        }
+      }
+
+      function onPointerMove(e) {
+        if (!isDragging) return;
+        const rect = track.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const min = parseFloat(input.min !== '' ? input.min : '0');
+        const max = parseFloat(input.max !== '' ? input.max : '100');
+        const step = parseFloat(input.step !== '' && input.step !== 'any' ? input.step : '1');
+
+        let newValue = min + ((e.clientX - rect.left) / rect.width) * (max - min);
+        if (step > 0) {
+          newValue = Math.round((newValue - min) / step) * step + min;
+        }
+        newValue = Math.min(Math.max(newValue, min), max);
+
+        if (e.clientX < rect.left) {
+          region = 'left';
+          overflow = decay(rect.left - e.clientX, MAX_OVERFLOW);
+        } else if (e.clientX > rect.right) {
+          region = 'right';
+          overflow = decay(e.clientX - rect.right, MAX_OVERFLOW);
+        } else {
+          region = 'middle';
+          overflow = 0;
+        }
+
+        if (input.value != newValue) {
+          input.value = newValue;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        updateDisplay();
+        applyPhysics(overflow, region, e.clientX, rect);
+      }
+
+      function onPointerUp(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        root.removeAttribute('data-dragging');
+        try { root.releasePointerCapture(e.pointerId); } catch(_) {}
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+
+        if (overflow > 0.1) {
+          if (animFrame) cancelAnimationFrame(animFrame);
+          let curOv = overflow;
+          let vel = 0;
+          const k = 0.24;
+          const d = 0.72;
+          const savedRegion = region;
+          const rect = track.getBoundingClientRect();
+
+          function springStep() {
+            const force = -k * curOv;
+            vel = (vel + force) * d;
+            curOv += vel;
+            applyPhysics(curOv, savedRegion, 0, rect);
+            if (Math.abs(curOv) > 0.08 || Math.abs(vel) > 0.08) {
+              animFrame = requestAnimationFrame(springStep);
+            } else {
+              applyPhysics(0, 'middle', 0, rect);
+            }
+          }
+          animFrame = requestAnimationFrame(springStep);
+        } else {
+          applyPhysics(0, 'middle', 0, track.getBoundingClientRect());
+        }
+      }
+
+      root.addEventListener('pointerdown', e => {
+        if (animFrame) cancelAnimationFrame(animFrame);
+        isDragging = true;
+        root.setAttribute('data-dragging', '');
+        try { root.setPointerCapture(e.pointerId); } catch(_) {}
+        onPointerMove(e);
+      });
+      root.addEventListener('pointermove', onPointerMove);
+      root.addEventListener('pointerup', onPointerUp);
+      root.addEventListener('pointercancel', onPointerUp);
+
+      // Keyboard support
+      root.addEventListener('keydown', e => {
+        const min = parseFloat(input.min !== '' ? input.min : '0');
+        const max = parseFloat(input.max !== '' ? input.max : '100');
+        const step = parseFloat(input.step !== '' && input.step !== 'any' ? input.step : '1');
+        let cur = parseFloat(input.value !== '' ? input.value : min);
+
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          input.value = Math.max(min, cur - step);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          updateDisplay();
+        } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          input.value = Math.min(max, cur + step);
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          updateDisplay();
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          input.value = min;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          updateDisplay();
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          input.value = max;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          updateDisplay();
+        }
+      });
+
+      // Step Buttons
+      btnLeft.addEventListener('click', () => {
+        const min = parseFloat(input.min !== '' ? input.min : '0');
+        const step = parseFloat(input.step !== '' && input.step !== 'any' ? input.step : '1');
+        const cur = parseFloat(input.value !== '' ? input.value : min);
+        input.value = Math.max(min, cur - step);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        updateDisplay();
+      });
+
+      btnRight.addEventListener('click', () => {
+        const max = parseFloat(input.max !== '' ? input.max : '100');
+        const step = parseFloat(input.step !== '' && input.step !== 'any' ? input.step : '1');
+        const cur = parseFloat(input.value !== '' ? input.value : 0);
+        input.value = Math.min(max, cur + step);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        updateDisplay();
+      });
+    });
+  }
+
   // ── Audio generation ───────────────────────────────────────────────────────────
   let _audioClips = [];
   let _videoDownloadUrl = null;
@@ -3811,7 +4190,9 @@ alex
     }
   }
 
+  initElasticSliders();
   loadSettings();
+  window.addEventListener('DOMContentLoaded', initElasticSliders);
   if (IS_DEMO) {
     // Force dark mode
     if (!isAppDark) toggleDarkMode();
