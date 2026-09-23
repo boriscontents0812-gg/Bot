@@ -9,10 +9,20 @@ from PIL import Image
 import imageio_ffmpeg
 from renderer import render_preview_image
 
-VIDEOS_DIR = os.path.join(os.path.dirname(__file__), 'data', 'videos')
-os.makedirs(VIDEOS_DIR, exist_ok=True)
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    VIDEOS_DIR = "/tmp/data/videos"
+else:
+    VIDEOS_DIR = os.path.join(os.path.dirname(__file__), 'data', 'videos')
 
-FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+try:
+    os.makedirs(VIDEOS_DIR, exist_ok=True)
+except Exception:
+    pass
+
+try:
+    FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+except Exception:
+    FFMPEG_EXE = shutil.which("ffmpeg") or "ffmpeg"
 
 video_jobs = {}
 

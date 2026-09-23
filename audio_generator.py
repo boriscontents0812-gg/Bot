@@ -5,8 +5,15 @@ import math
 import httpx
 import re
 
-AUDIO_DIR = os.path.join(os.path.dirname(__file__), 'data', 'audio')
-os.makedirs(AUDIO_DIR, exist_ok=True)
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    AUDIO_DIR = "/tmp/data/audio"
+else:
+    AUDIO_DIR = os.path.join(os.path.dirname(__file__), 'data', 'audio')
+
+try:
+    os.makedirs(AUDIO_DIR, exist_ok=True)
+except Exception:
+    pass
 
 def generate_beep_wav(filepath, duration_ms, freq=440.0, sample_rate=24000):
     num_samples = int(sample_rate * (duration_ms / 1000.0))

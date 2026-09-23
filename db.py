@@ -2,8 +2,22 @@ import sqlite3
 import os
 import json
 import time
+import shutil
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'botyk.db')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    DATA_DIR = "/tmp/data"
+    os.makedirs(DATA_DIR, exist_ok=True)
+    DB_PATH = os.path.join(DATA_DIR, "botyk.db")
+    src_db = os.path.join(BASE_DIR, "data", "botyk.db")
+    if not os.path.exists(DB_PATH) and os.path.exists(src_db):
+        try:
+            shutil.copyfile(src_db, DB_PATH)
+        except Exception:
+            pass
+else:
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+    DB_PATH = os.path.join(DATA_DIR, "botyk.db")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -11,7 +25,10 @@ def get_db():
     return conn
 
 def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    try:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    except Exception:
+        pass
     with get_db() as conn:
         conn.execute('''
             CREATE TABLE IF NOT EXISTS access_keys (

@@ -28,7 +28,14 @@ app = FastAPI(title="iMessage Video Generator", version="0.1.0")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
-DATA_DIR = os.path.join(BASE_DIR, "data")
+if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    DATA_DIR = "/tmp/data"
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+    except Exception:
+        pass
+else:
+    DATA_DIR = os.path.join(BASE_DIR, "data")
 UPSTREAM_BASE = "https://botyk.app"
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
