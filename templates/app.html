@@ -1014,7 +1014,7 @@
       <p><strong>9. Sponsor overlays</strong> — Three-line blocks for animated overlays. Use <code>rizz</code>, <code>plug</code>, or <code>wing</code> as the first line, then the overlay voice name, then the message line. <strong>rizz</strong> shows the Rizz card overlay, <strong>plug</strong> shows the Plug card, <strong>wing</strong> shows the Wing card — each plays the intro phrase spoken by the given voice, then the message appears in chat with its normal voice.</p>
       <p><strong>10. ElevenLabs &amp; audio</strong> — Add your API key in the left panel, pick a voice profile, then hit <strong>Generate Audio</strong>. Voice names must match your ElevenLabs account (case-insensitive). Review clips in the Audio tab and regenerate individual lines if needed.</p>
       <p><strong>11. Music &amp; gameplay</strong> — Upload background music (mp3/m4a/wav/ogg) and gameplay video (mp4) in the Video settings panel (max 500 MB). Set start time with <code>0:00</code> format. Toggle music fade-out and end fade to black.</p>
-      <p><strong>12. Generate video</strong> — Hit <strong>Generate Video</strong> in the right panel. If it exceeds 2:59, use <strong>Shorten to 2:59</strong> to auto-compress to exactly 2:59. Download from the Video tab.</p>
+      <p><strong>12. Generate video</strong> — Hit <strong>Generate Video</strong> in the right panel. If it exceeds 8:00, use <strong>Shorten to 8:00</strong> to auto-compress to under 8 minutes. Download from the Video tab.</p>
     </div>
   </div>
 
@@ -1279,9 +1279,9 @@
           </button>
           <button id="btn-shorten" class="btn btn-warn btn-sm" onclick="doShortenVideo()" style="display:none">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Shorten to 2:59
+            Shorten to 8:00
           </button>
-          <div id="shorten-hint" style="font-size:11px;color:var(--muted-fg);text-align:center;display:none">Shorten re-renders at higher speed to fit under 3 minutes</div>
+          <div id="shorten-hint" style="font-size:11px;color:var(--muted-fg);text-align:center;display:none">Shorten re-renders at higher speed to fit under 8 minutes</div>
         </div>
 
       </div>
@@ -1513,7 +1513,7 @@
             <div class="row"><span>Notification sound</span><button id="switch-notif-sound" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
             <div class="row"><span>Header persistent</span><button id="switch-header-persistent" class="ios-switch" onclick="toggleSwitch(this);refreshPreview()"></button></div>
             <div class="row"><span>Header gradient</span><button id="switch-header-gradient" class="ios-switch" onclick="toggleSwitch(this);refreshPreview()"></button></div>
-            <div class="row"><span>Auto-shorten to 2:59</span><button id="switch-shorten" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
+            <div class="row"><span>Auto-shorten to 8:00</span><button id="switch-shorten" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
             <div class="row"><span>Sent bubble fade</span><button class="ios-switch" id="switch-bfade" onclick="toggleSwitch(this);toggleBubbleFade();refreshPreview()"></button></div>
             <div id="bfade-intensity" style="display:none" class="field-group">
               <div class="slider-header"><div class="label">Fade intensity</div><span class="slider-val" id="val-bfade">60%</span></div>
@@ -1730,7 +1730,7 @@
               </div>
               <div class="row"><span>Fade between groups</span><button id="wa-switch-group-fade" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
               <div class="row"><span>Notification sound</span><button id="wa-switch-notif-sound" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
-              <div class="row"><span>Auto-shorten to 2:59</span><button id="wa-switch-shorten" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
+              <div class="row"><span>Auto-shorten to 8:00</span><button id="wa-switch-shorten" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
               <div class="row"><span>Container shadow</span><button id="wa-switch-shadow" class="ios-switch on" onclick="toggleSwitch(this);refreshPreview()"></button></div>
               <div class="row"><span>Pop-in effect</span><button id="wa-switch-popin" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
               <div style="display:flex;gap:8px;margin-top:4px">
@@ -3361,11 +3361,11 @@
 
       const _shortenId  = _currentStyle === 'whatsapp' ? 'wa-switch-shorten' : 'switch-shorten';
       const autoShorten = document.getElementById(_shortenId)?.classList.contains('on');
-      if (autoShorten && _currentVideoDuration > 179) {
-        setStatus(`Video is ${durStr} — auto-shortening to 2:59…`);
+      if (autoShorten && _currentVideoDuration > 480) {
+        setStatus(`Video is ${durStr} — auto-shortening to 8:00…`);
         await doShortenVideo();
-      } else if (_currentVideoDuration > 179) {
-        setStatus(`✅ Video ready! ${durStr} · generated in ${genSecs}s — over 2:59, use Shorten if needed.`);
+      } else if (_currentVideoDuration > 480) {
+        setStatus(`✅ Video ready! ${durStr} · generated in ${genSecs}s — over 8:00, use Shorten if needed.`);
       } else {
         setStatus(`✅ Video ready! ${durStr} · generated in ${genSecs}s`);
       }
@@ -3412,24 +3412,24 @@
   }
 
   function _updateShortenVisibility() {
-    const show = _currentVideoDuration > 179;
+    const show = _currentVideoDuration > 480;
     document.getElementById('btn-shorten').style.display  = show ? '' : 'none';
     document.getElementById('shorten-hint').style.display = show ? '' : 'none';
   }
 
-  // ── Shorten to 2:59 ────────────────────────────────────────────────────────────
+  // ── Shorten to 8:00 ────────────────────────────────────────────────────────────
   async function doShortenVideo() {
     if (IS_DEMO) { showDemoModal(); return; }
     if (!_currentVideoToken) { setStatus('Generate video first.'); return; }
-    if (_currentVideoDuration > 0 && _currentVideoDuration <= 179) {
-      setStatus('Video is already under 2:59.'); return;
+    if (_currentVideoDuration > 0 && _currentVideoDuration <= 480) {
+      setStatus('Video is already under 8:00.'); return;
     }
 
     const btn = document.getElementById('btn-shorten');
     btn.disabled = true;
     const orig = btn.innerHTML;
     btn.textContent = 'Shortening…';
-    setStatus('Shortening to 2:59 — re-rendering at higher speed…');
+    setStatus('Shortening to 8:00 — re-rendering at higher speed…');
 
     try {
       const s = getSettings();

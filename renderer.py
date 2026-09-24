@@ -92,7 +92,7 @@ def draw_video_icon(draw, x, y, size=18, color=(0, 122, 255)):
 def draw_phone_icon(draw, x, y, size=16, color=(0, 122, 255)):
     draw.rounded_rectangle([x, y, x + size, y + size], radius=3, fill=color)
 
-def render_preview_image(body):
+def render_preview_image(body, visible_count=None):
     style = body.get('style', 'ios')
     script_text = body.get('script', '')
     page = int(body.get('page', 0))
@@ -108,10 +108,18 @@ def render_preview_image(body):
     msgs_per_page = int(body.get('msgs_per_page', 6))
     if msgs_per_page < 1:
         msgs_per_page = 6
-    total_pages = max(1, math.ceil(len(messages) / msgs_per_page))
-    page = max(0, min(page, total_pages - 1))
-    
-    page_msgs = messages[page * msgs_per_page : (page + 1) * msgs_per_page]
+
+    if visible_count is not None:
+        count = min(len(messages), max(1, int(visible_count)))
+        if count <= msgs_per_page:
+            page_msgs = messages[0:count]
+        else:
+            page_msgs = messages[count - msgs_per_page : count]
+        total_pages = 1
+    else:
+        total_pages = max(1, math.ceil(len(messages) / msgs_per_page))
+        page = max(0, min(page, total_pages - 1))
+        page_msgs = messages[page * msgs_per_page : (page + 1) * msgs_per_page]
 
     container_scale = float(body.get('container_scale', 1.0))
     c_w = int(W * 0.85 * container_scale)
