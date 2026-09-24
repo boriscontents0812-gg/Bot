@@ -46,6 +46,52 @@ app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 # Audio progress state per key
 audio_progress = {}
 
+VALID_ELEVEN_VOICES = {
+    'roger', 'sarah', 'laura', 'charlie', 'george', 'callum', 'river', 'harry',
+    'liam', 'alice', 'matilda', 'will', 'jessica', 'eric', 'bella', 'chris',
+    'brian', 'daniel', 'lily', 'adam', 'bill', 'natasha', 'jimbo', 'nicole'
+}
+
+def get_upstream_client(timeout: float = 30.0) -> httpx.AsyncClient:
+    """Forces IPv4 to avoid hanging on dead IPv6 addresses for botyk.app."""
+    try:
+        transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")
+        return httpx.AsyncClient(transport=transport, timeout=timeout)
+    except Exception:
+        return httpx.AsyncClient(timeout=timeout)
+
+def sanitize_script_voices_for_upstream(script_text: str) -> str:
+    """
+    Ensures character voice names after 1: or 2: match valid ElevenLabs voice names
+    expected by botyk.app, preventing "TTS error: Voice 'X' not found in ElevenLabs".
+    Maps unrecognized side 1 voices to Sarah, and side 2 voices to Roger.
+    """
+    if not script_text:
+        return ""
+    lines = script_text.splitlines()
+    out = []
+    mapped = {}
+    for line in lines:
+        m = re.match(r'^(1|2):\s*([^>]+?)\s*>\s*(.+)$', line)
+        if m:
+            side = int(m.group(1))
+            name = m.group(2).strip()
+            rest = m.group(3)
+            # If name starts with 'img:', leave it as is
+            if name.lower().startswith('img:'):
+                out.append(line)
+                continue
+            name_clean = name.split()[0].lower()
+            if name_clean in VALID_ELEVEN_VOICES:
+                out.append(line)
+            else:
+                if name not in mapped:
+                    mapped[name] = "Sarah" if side == 1 else "Roger"
+                out.append(f"{side}:{mapped[name]}> {rest}")
+        else:
+            out.append(line)
+    return "\n".join(out)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Helper: Session Auth
 # ─────────────────────────────────────────────────────────────────────────────
@@ -270,21 +316,49 @@ async def generate_audio(request: Request):
     data = await request.json()
     script = data.get("script", "")
 
-    # 1. Attempt upstream generation for exact ElevenLabs voices (fast 2s timeout on serverless)
+    # 1. Sync ElevenLabs API key to upstream if configured
     try:
-        audio_timeout = 2.0 if (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")) else 8.0
-        async with httpx.AsyncClient(timeout=audio_timeout) as client:
+        with get_db() as conn:
+            u_row = conn.execute("SELECT eleven_key FROM access_keys WHERE UPPER(code) = ?", (key.upper(),)).fetchone()
+            if u_row and u_row["eleven_key"]:
+                e_key = u_row["eleven_key"]
+                async with get_upstream_client(timeout=4.0) as client:
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_key", json={"key": e_key}, headers={"Cookie": f"imsg_session={key}"})
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles", json={"name": "active", "key": e_key}, headers={"Cookie": f"imsg_session={key}"})
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles/active/activate", headers={"Cookie": f"imsg_session={key}"})
+    except Exception:
+        pass
+
+    # 2. Upstream audio generation with sanitized voice names
+    upstream_data = data.copy()
+    upstream_data["script"] = sanitize_script_voices_for_upstream(script)
+
+    try:
+        async with get_upstream_client(timeout=60.0) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_audio",
-                json=data,
+                json=upstream_data,
                 headers={"Content-Type": "application/json", "Cookie": f"imsg_session={key}"}
             )
             if resp.status_code == 200:
                 up_res = resp.json()
                 if isinstance(up_res, dict):
                     up_res["credits_used"] = 0
+                # Download full audio for local caching/fallback
+                try:
+                    full_resp = await client.get(
+                        f"{UPSTREAM_BASE}/api/audio_full",
+                        headers={"Cookie": f"imsg_session={key}"}
+                    )
+                    if full_resp.status_code == 200:
+                        user_audio_dir = os.path.join(DATA_DIR, "audio", key)
+                        os.makedirs(user_audio_dir, exist_ok=True)
+                        with open(os.path.join(user_audio_dir, "audio_full.wav"), "wb") as f:
+                            f.write(full_resp.content)
+                except Exception:
+                    pass
                 return up_res
-            elif resp.status_code in (400, 422, 500):
+            elif resp.status_code in (400, 422):
                 try:
                     return JSONResponse(status_code=resp.status_code, content=resp.json())
                 except Exception:
@@ -525,10 +599,15 @@ async def generate_video(request: Request):
     key = require_auth(request)
     payload = await request.json()
 
-    # 1. Upstream video generation
+    # Sanitize script in payload if present
+    if "script" in payload and payload["script"]:
+        payload["script"] = sanitize_script_voices_for_upstream(payload["script"])
+    if "settings" in payload and isinstance(payload.get("settings"), dict) and "script" in payload["settings"]:
+        payload["settings"]["script"] = sanitize_script_voices_for_upstream(payload["settings"]["script"])
+
+    # 1. Upstream video generation (allow up to 180s for rendering)
     try:
-        video_timeout = 5.0 if (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")) else 45.0
-        async with httpx.AsyncClient(timeout=video_timeout) as client:
+        async with get_upstream_client(timeout=180.0) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_video",
                 json=payload,
@@ -554,7 +633,7 @@ async def generate_video(request: Request):
                 except Exception:
                     return Response(status_code=resp.status_code, content=resp.content)
     except httpx.TimeoutException:
-        # Video is encoding upstream. Return 202 immediately so client polls /api/last_video without serverless timeout!
+        # Video is still encoding upstream. Return 202 so client polls /api/last_video
         return JSONResponse(status_code=202, content={
             "ok": True,
             "status": "rendering",
@@ -563,13 +642,9 @@ async def generate_video(request: Request):
     except Exception as e:
         print(f"Notice: Upstream video error: {e}")
 
-    # On Vercel / serverless: NEVER run local FFmpeg because it will exceed 60s
+    # On Vercel / serverless: if upstream failed completely, raise 502 error instead of returning fake 202
     if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-        return JSONResponse(status_code=202, content={
-            "ok": True,
-            "status": "rendering",
-            "detail": "Video rendering in progress. Polling for completion..."
-        })
+        raise HTTPException(status_code=502, detail="Upstream video generation failed or timed out. Please retry.")
 
     # Local fallback for self-hosted / non-serverless
     user_audio_dir = os.path.join(DATA_DIR, "audio", key)
@@ -608,7 +683,7 @@ async def generate_video(request: Request):
 async def get_last_video(request: Request):
     key = require_auth(request)
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with get_upstream_client(timeout=4.0) as client:
             resp = await client.get(f"{UPSTREAM_BASE}/api/last_video", headers={"Cookie": f"imsg_session={key}"})
             if resp.status_code == 200:
                 data = resp.json()
@@ -871,9 +946,13 @@ async def save_project(name: str, request: Request):
     data = await request.json()
     style = data.get("settings", {}).get("style", "ios")
 
+    upstream_data = data.copy()
+    if "script" in upstream_data and upstream_data["script"]:
+        upstream_data["script"] = sanitize_script_voices_for_upstream(upstream_data["script"])
+
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            await client.post(f"{UPSTREAM_BASE}/api/projects/{name}/save", json=data, headers={"Cookie": f"imsg_session={key}"})
+        async with get_upstream_client(timeout=5.0) as client:
+            await client.post(f"{UPSTREAM_BASE}/api/projects/{name}/save", json=upstream_data, headers={"Cookie": f"imsg_session={key}"})
     except Exception:
         pass
 
@@ -889,7 +968,7 @@ async def save_project(name: str, request: Request):
 async def load_project(name: str, request: Request):
     key = require_auth(request)
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with get_upstream_client(timeout=4.0) as client:
             resp = await client.get(f"{UPSTREAM_BASE}/api/projects/{name}/load", headers={"Cookie": f"imsg_session={key}"})
             if resp.status_code == 200:
                 return resp.json()
@@ -906,7 +985,7 @@ async def load_project(name: str, request: Request):
 async def delete_project(name: str, request: Request):
     key = require_auth(request)
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with get_upstream_client(timeout=4.0) as client:
             await client.delete(f"{UPSTREAM_BASE}/api/projects/{name}", headers={"Cookie": f"imsg_session={key}"})
     except Exception:
         pass
@@ -922,7 +1001,7 @@ async def delete_project(name: str, request: Request):
 @app.get("/api/eleven_quota")
 async def eleven_quota():
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with get_upstream_client(timeout=4.0) as client:
             resp = await client.get(f"{UPSTREAM_BASE}/api/eleven_quota", headers={"Cookie": "imsg_session=6C6W-K6LD-JRVV-QGTM"})
             if resp.status_code == 200:
                 return resp.json()
@@ -942,7 +1021,7 @@ async def eleven_quota():
 async def list_eleven_profiles(request: Request):
     key = require_auth(request)
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with get_upstream_client(timeout=4.0) as client:
             resp = await client.get(f"{UPSTREAM_BASE}/api/eleven_profiles", headers={"Cookie": f"imsg_session={key}"})
             if resp.status_code == 200:
                 return resp.json()
@@ -959,6 +1038,13 @@ async def save_eleven_profile(request: Request):
     data = await request.json()
     name = data.get("name", "").strip()
     api_key = data.get("key", "").strip()
+
+    try:
+        async with get_upstream_client(timeout=4.0) as client:
+            await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles", json=data, headers={"Cookie": f"imsg_session={key}"})
+    except Exception:
+        pass
+
     with get_db() as conn:
         conn.execute('''
             INSERT OR REPLACE INTO eleven_profiles (key_code, name, api_key, created_at, active)
@@ -969,16 +1055,30 @@ async def save_eleven_profile(request: Request):
     return {"ok": True}
 
 @app.delete("/api/eleven_profiles/{name}")
-def delete_eleven_profile(name: str, request: Request):
+async def delete_eleven_profile(name: str, request: Request):
     key = require_auth(request)
+
+    try:
+        async with get_upstream_client(timeout=4.0) as client:
+            await client.delete(f"{UPSTREAM_BASE}/api/eleven_profiles/{name}", headers={"Cookie": f"imsg_session={key}"})
+    except Exception:
+        pass
+
     with get_db() as conn:
         conn.execute("DELETE FROM eleven_profiles WHERE key_code = ? AND name = ?", (key, name))
         conn.commit()
     return {"ok": True}
 
 @app.post("/api/eleven_profiles/{name}/activate")
-def activate_eleven_profile(name: str, request: Request):
+async def activate_eleven_profile(name: str, request: Request):
     key = require_auth(request)
+
+    try:
+        async with get_upstream_client(timeout=4.0) as client:
+            await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles/{name}/activate", headers={"Cookie": f"imsg_session={key}"})
+    except Exception:
+        pass
+
     with get_db() as conn:
         conn.execute("UPDATE eleven_profiles SET active = 0 WHERE key_code = ?", (key,))
         conn.execute("UPDATE eleven_profiles SET active = 1 WHERE key_code = ? AND name = ?", (key, name))
@@ -993,6 +1093,13 @@ async def save_eleven_key(request: Request):
     key = require_auth(request)
     data = await request.json()
     api_key = data.get("key", "").strip()
+
+    try:
+        async with get_upstream_client(timeout=4.0) as client:
+            await client.post(f"{UPSTREAM_BASE}/api/eleven_key", json=data, headers={"Cookie": f"imsg_session={key}"})
+    except Exception:
+        pass
+
     with get_db() as conn:
         conn.execute("UPDATE access_keys SET eleven_key = ? WHERE code = ?", (api_key, key))
         conn.commit()

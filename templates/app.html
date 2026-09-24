@@ -3180,6 +3180,7 @@
     const gameplayFile  = document.getElementById('gameplay-select')?.value ?? '';
     const gameplayStart = document.getElementById('gameplay-start')?.value ?? '0:00';
     const bgSoundFile   = document.getElementById('bg-sound-select')?.value ?? '';
+    const scriptText    = document.getElementById('script-input')?.value.trim() ?? '';
 
     if (_currentStyle === 'whatsapp') {
       const speed        = +(document.getElementById('wa-audio-speed')?.value ?? 100) / 100;
@@ -3188,7 +3189,8 @@
       const waGpStart    = document.getElementById('wa-gameplay-start')?.value ?? '0:00';
       const waBgSound    = document.getElementById('wa-bg-sound-select')?.value ?? '';
       return {
-        settings:         s,
+        script:           scriptText,
+        settings:         { ...s, script: scriptText },
         project:          _currentProject,
         rounded_corners:  s.rounded_corners,
         corner_radius:    s.corner_radius,
@@ -3215,7 +3217,8 @@
     const corners       = segmenteds[0]?.querySelector('button.active')?.textContent?.trim();
     const animation     = segmenteds[1]?.querySelector('button.active')?.textContent?.trim();
     return {
-      settings:          s,
+      script:            scriptText,
+      settings:          { ...s, script: scriptText },
       project:           _currentProject,
       animation_mode:    animation?.toLowerCase().includes('slide') ? 'slide' : 'crop',
       rounded_corners:   corners === 'Rounded',
@@ -3281,7 +3284,16 @@
     try {
       const s = getSettings();
       const _genStart = Date.now();
-      const oldToken = _currentVideoToken || '';
+      let oldToken = _currentVideoToken || '';
+      if (!oldToken) {
+        try {
+          const lvCheck = await fetch('/api/last_video');
+          if (lvCheck.ok) {
+            const lvd = await lvCheck.json();
+            if (lvd.token) oldToken = lvd.token;
+          }
+        } catch(_) {}
+      }
       let res = null, d = {};
       try {
         res = await fetch('/api/generate_video', {
@@ -3745,6 +3757,7 @@
         body: JSON.stringify({
           script: document.getElementById('script-input').value,
           settings: getSettings(),
+          clip_metadata: _audioClips,
         }),
       });
     } catch(e) {}

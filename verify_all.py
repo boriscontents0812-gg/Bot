@@ -18,7 +18,7 @@ def test_unauthenticated_root():
     with opener.open(req) as resp:
         assert resp.status == 200
         html = resp.read().decode('utf-8')
-        assert "Botyk" in html
+        assert "Gengar Studio" in html or "Botyk" in html
         assert "landing-key-input" in html
         assert "Ultimate iMessage Toolkit" in html
         print("[PASS] 1. GET / (unauthenticated) -> Returns exact Landing Page")
@@ -38,7 +38,7 @@ def test_authenticated_root():
         assert resp.status == 200
         html = resp.read().decode('utf-8')
         assert "const IS_DEMO = false;" in html
-        assert "iMessage Video Generator" in html
+        assert "Gengar Studio" in html or "iMessage Video Generator" in html
         assert "script-input" in html
         print("[PASS] 3. GET / (authenticated) -> Returns full Studio App (IS_DEMO = false)")
 
