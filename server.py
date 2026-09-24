@@ -270,9 +270,10 @@ async def generate_audio(request: Request):
     data = await request.json()
     script = data.get("script", "")
 
-    # 1. Attempt upstream generation for exact ElevenLabs voices
+    # 1. Attempt upstream generation for exact ElevenLabs voices (fast 2s timeout on serverless)
     try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        audio_timeout = 2.0 if (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")) else 8.0
+        async with httpx.AsyncClient(timeout=audio_timeout) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_audio",
                 json=data,
@@ -289,7 +290,7 @@ async def generate_audio(request: Request):
                 except Exception:
                     pass
     except httpx.TimeoutException:
-        print("Notice: Upstream audio timed out at 45s, attempting local generation")
+        print("Notice: Upstream audio timed out, proceeding with instant local parallel synthesis")
     except Exception as e:
         print(f"Notice: Upstream audio fallback active: {e}")
 
@@ -526,8 +527,8 @@ async def generate_video(request: Request):
 
     # 1. Upstream video generation
     try:
-        # Keep timeout at 45.0s to ensure we never hit Vercel's 60s Serverless limit
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        video_timeout = 5.0 if (os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")) else 45.0
+        async with httpx.AsyncClient(timeout=video_timeout) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_video",
                 json=payload,
@@ -553,7 +554,7 @@ async def generate_video(request: Request):
                 except Exception:
                     return Response(status_code=resp.status_code, content=resp.content)
     except httpx.TimeoutException:
-        # Video is taking > 45s to encode upstream. Return 202 so client polls /api/last_video seamlessly!
+        # Video is encoding upstream. Return 202 immediately so client polls /api/last_video without serverless timeout!
         return JSONResponse(status_code=202, content={
             "ok": True,
             "status": "rendering",
