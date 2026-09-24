@@ -553,11 +553,6 @@ def list_gameplay():
     g_dir = os.path.join(DATA_DIR, "gameplay")
     if os.path.exists(g_dir):
         files.extend([f for f in os.listdir(g_dir) if f.endswith(('.mp4', '.mov', '.webm'))])
-    demo_dir = os.path.join(ASSETS_DIR, "demo")
-    if os.path.exists(demo_dir):
-        for f in os.listdir(demo_dir):
-            if f.endswith('.mp4') and f not in files:
-                files.append(f)
     return files
 
 @app.post("/api/upload/music")

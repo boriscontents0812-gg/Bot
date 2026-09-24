@@ -1568,13 +1568,13 @@
                 <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
                   <span style="font-size:12px;color:var(--muted-fg);font-weight:500;line-height:1">Gameplay video</span>
                   <div class="select-wrap">
-                    <select class="field" id="gameplay-select" style="font-size:12px"><option>none</option></select>
+                    <select class="field" id="gameplay-select" style="font-size:12px" onchange="refreshPreview()"><option>none</option></select>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
                   <span style="font-size:12px;color:var(--muted-fg);font-weight:500;line-height:1">Start</span>
-                  <input type="text" id="gameplay-start" class="field" value="0:00" placeholder="0:00" style="width:56px" />
+                  <input type="text" id="gameplay-start" class="field" value="0:00" placeholder="0:00" style="width:56px" oninput="refreshPreview()" />
                 </div>
               </div>
               <div id="crossfade-row" style="display:none;flex-direction:column;gap:8px">
@@ -1778,13 +1778,13 @@
                   <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
                     <span style="font-size:12px;color:var(--muted-fg);font-weight:500;line-height:1">Gameplay video</span>
                     <div class="select-wrap">
-                      <select class="field" id="wa-gameplay-select" style="font-size:12px"><option>none</option></select>
+                      <select class="field" id="wa-gameplay-select" style="font-size:12px" onchange="refreshPreview()"><option>none</option></select>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                   </div>
                   <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
                     <span style="font-size:12px;color:var(--muted-fg);font-weight:500;line-height:1">Start</span>
-                    <input type="text" id="wa-gameplay-start" class="field" value="0:00" placeholder="0:00" style="width:56px" />
+                    <input type="text" id="wa-gameplay-start" class="field" value="0:00" placeholder="0:00" style="width:56px" oninput="refreshPreview()" />
                   </div>
                 </div>
                 <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:36px" onclick="loadGameplayList()">
@@ -2198,6 +2198,9 @@
         rounded_corners: document.querySelector('#wa-corners-seg button.active')?.textContent?.trim() === 'Rounded' ? 1 : 0,
         corner_radius:   +(document.getElementById('wa-corner-radius')?.value ?? 35),
         container_shadow: document.getElementById('wa-switch-shadow')?.classList.contains('on') ? 1 : 0,
+        gameplay_on:      document.getElementById('wa-switch-gameplay')?.classList.contains('on') ?? false,
+        gameplay_file:    document.getElementById('wa-gameplay-select')?.value ?? '',
+        gameplay_start:   document.getElementById('wa-gameplay-start')?.value ?? '0:00',
       };
     }
     return {
@@ -2229,6 +2232,9 @@
       bubble_fade:           document.getElementById('switch-bfade')?.classList.contains('on') ? 1 : 0,
       bubble_fade_intensity: +(document.querySelector('input[oninput*="val-bfade"]')?.value ?? 60),
       container_shadow:      document.getElementById('switch-container-shadow')?.classList.contains('on') ? 1 : 0,
+      gameplay_on:           document.getElementById('switch-gameplay')?.classList.contains('on') ?? false,
+      gameplay_file:         document.getElementById('gameplay-select')?.value ?? '',
+      gameplay_start:        document.getElementById('gameplay-start')?.value ?? '0:00',
     };
   }
 
@@ -2445,10 +2451,12 @@
     const on = document.getElementById('switch-gameplay').classList.contains('on');
     document.getElementById('gameplay-options').style.display = on ? 'flex' : 'none';
     document.getElementById('crossfade-row').style.display = (on && CROSSFADE_ENABLED) ? 'flex' : 'none';
+    refreshPreview();
   }
   function toggleWaGameplay() {
     const on = document.getElementById('wa-switch-gameplay').classList.contains('on');
     document.getElementById('wa-gameplay-options').style.display = on ? 'flex' : 'none';
+    refreshPreview();
   }
 
 // ── Segmented ──────────────────────────────────────────────────────────────────
