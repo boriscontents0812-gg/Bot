@@ -4,26 +4,52 @@ import re
 import math
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 
-FONTS_DIR = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts')
-
 def get_font(size, bold=False):
-    font_file = 'segoeuib.ttf' if bold else 'segoeui.ttf'
-    path = os.path.join(FONTS_DIR, font_file)
-    if not os.path.exists(path):
-        font_file = 'arialbd.ttf' if bold else 'arial.ttf'
-        path = os.path.join(FONTS_DIR, font_file)
+    font_candidates = []
+    if os.name == 'nt':
+        win_dir = os.environ.get('WINDIR', 'C:\\Windows')
+        fonts_dir = os.path.join(win_dir, 'Fonts')
+        font_candidates.extend([
+            os.path.join(fonts_dir, 'segoeuib.ttf' if bold else 'segoeui.ttf'),
+            os.path.join(fonts_dir, 'arialbd.ttf' if bold else 'arial.ttf'),
+            os.path.join(fonts_dir, 'calibrib.ttf' if bold else 'calibri.ttf')
+        ])
+    else:
+        # Linux / Vercel serverless environment
+        font_candidates.extend([
+            f'/usr/share/fonts/truetype/dejavu/DejaVuSans{"-Bold" if bold else ""}.ttf',
+            f'/usr/share/fonts/truetype/liberation/LiberationSans-{"Bold" if bold else "Regular"}.ttf',
+            f'/usr/share/fonts/truetype/freefont/FreeSans{"Bold" if bold else ""}.ttf',
+            f'/usr/share/fonts/dejavu/DejaVuSans{"-Bold" if bold else ""}.ttf'
+        ])
+    for p in font_candidates:
+        if os.path.exists(p):
+            try:
+                return ImageFont.truetype(p, int(size))
+            except Exception:
+                continue
     try:
-        return ImageFont.truetype(path, int(size))
+        return ImageFont.load_default(size=int(size))
     except Exception:
         return ImageFont.load_default()
 
 def get_emoji_font(size):
-    path = os.path.join(FONTS_DIR, 'seguiemj.ttf')
-    if os.path.exists(path):
-        try:
-            return ImageFont.truetype(path, int(size))
-        except Exception:
-            pass
+    candidates = []
+    if os.name == 'nt':
+        win_dir = os.environ.get('WINDIR', 'C:\\Windows')
+        candidates.append(os.path.join(win_dir, 'Fonts', 'seguiemj.ttf'))
+    else:
+        candidates.extend([
+            '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf',
+            '/usr/share/fonts/truetype/noto-emoji/NotoColorEmoji.ttf',
+            '/usr/share/fonts/google-noto-color-emoji-fonts/NotoColorEmoji.ttf'
+        ])
+    for p in candidates:
+        if os.path.exists(p):
+            try:
+                return ImageFont.truetype(p, int(size))
+            except Exception:
+                continue
     return get_font(size)
 
 def is_emoji_char(char):
