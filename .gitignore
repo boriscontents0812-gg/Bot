@@ -17,6 +17,9 @@ data/videos/*
 local_exact_*.jpg
 test_preview_gen*.jpg
 
+# Node modules
+node_modules/
+
 # Editor / OS
 .vscode/
 .idea/

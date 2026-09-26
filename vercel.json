@@ -2,9 +2,9 @@
   "version": 2,
   "functions": {
     "api/index.py": {
-      "maxDuration": 300,
+      "maxDuration": 60,
       "memory": 1024,
-      "includeFiles": "{templates/**,assets/**,data/**,components/**,*.py}"
+      "includeFiles": "{templates/**,assets/**,data/**,*.py}"
     }
   },
   "rewrites": [

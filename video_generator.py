@@ -5,14 +5,10 @@ import uuid
 import json
 import math
 import shutil
-from renderer import render_preview_image, parse_script
-
 if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
     VIDEOS_DIR = "/tmp/data/videos"
-    DATA_DIR = "/tmp/data"
 else:
     VIDEOS_DIR = os.path.join(os.path.dirname(__file__), 'data', 'videos')
-    DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 try:
     os.makedirs(VIDEOS_DIR, exist_ok=True)
@@ -55,166 +51,100 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
     os.makedirs(temp_dir, exist_ok=True)
 
     try:
-        # Settings and script
-        settings = payload.get('settings', {}) if isinstance(payload.get('settings'), dict) else {}
-        script = payload.get('script') or settings.get('script') or ''
-        style = settings.get('style') or payload.get('style') or 'ios'
+        # Calculate total duration from clips
+        total_duration_ms = sum(c.get('duration_ms', 1000) for c in clips) if clips else 5000
+        total_duration_s = max(3.0, total_duration_ms / 1000.0)
+
+        # Generate chat frame images
+        set_job_progress(key_code, True, pct=25, msg="Rendering chat bubbles...")
         
-        # Check gameplay settings
-        gameplay_on = payload.get('gameplay_on', settings.get('gameplay_on', False))
-        if isinstance(gameplay_on, str):
-            gameplay_on = gameplay_on.lower() in ('1', 'true', 'yes')
-        gameplay_file = payload.get('gameplay_file') or settings.get('gameplay_file') or ''
-        gameplay_start = payload.get('gameplay_start') or settings.get('gameplay_start') or '0:00'
-
-        gameplay_path = None
-        if gameplay_on and gameplay_file and gameplay_file != 'none':
-            candidate = os.path.join(DATA_DIR, 'gameplay', gameplay_file)
-            if os.path.exists(candidate):
-                gameplay_path = candidate
-
-        has_bg_video = bool(gameplay_path and os.path.exists(gameplay_path))
-
-        preview_body = settings.copy()
-        preview_body['script'] = script
-        preview_body['style'] = style
-        preview_body['gameplay_on'] = gameplay_on
-        preview_body['gameplay_file'] = gameplay_file
-        preview_body['gameplay_start'] = gameplay_start
+        # Render the final frame
+        preview_body = payload.get('settings', {}).copy()
+        preview_body['script'] = payload.get('settings', {}).get('script', '')
+        preview_body['style'] = payload.get('settings', {}).get('style', 'ios')
         preview_body['page'] = 0
-
-        # Parse messages
-        _, messages, _ = parse_script(script)
-        msg_count = len(messages) if messages else 1
-
-        # Match clips to message count or estimate
-        durations = []
-        for i in range(msg_count):
-            if clips and i < len(clips):
-                d_ms = clips[i].get('duration_ms', 1500)
-                durations.append(max(0.6, d_ms / 1000.0))
-            else:
-                durations.append(2.0)
-
-        # End pause of 1.2s for readability
-        end_pause = 1.2
-        total_duration_s = sum(durations) + end_pause
-        # Max duration: 8 minutes (480 seconds)
-        total_duration_s = min(480.0, max(2.5, total_duration_s))
-
-        # Generate animated chat frames
-        set_job_progress(key_code, True, pct=25, msg=f"Rendering {msg_count} pixel-perfect chat frames...")
         
-        concat_lines = ['ffconcat version 1.0']
-        for i in range(msg_count):
-            # If video has background gameplay video, generate RGBA with alpha transparency
-            # If no background gameplay, generate direct RGB frame with matching background
-            img_bytes, _ = render_preview_image(preview_body, visible_count=i + 1, return_rgba=has_bg_video)
-            frame_path = os.path.join(temp_dir, f'frame_{i}.png')
-            with open(frame_path, 'wb') as f:
-                f.write(img_bytes)
-            
-            fpath_posix = frame_path.replace(os.sep, '/')
-            frame_dur = durations[i]
-            if i == msg_count - 1:
-                frame_dur += end_pause
+        frame_bytes, _ = render_preview_image(preview_body)
+        frame_path = os.path.join(temp_dir, 'chat_frame.jpg')
+        with open(frame_path, 'wb') as f:
+            f.write(frame_bytes)
 
-            concat_lines.append(f"file '{fpath_posix}'")
-            concat_lines.append(f"duration {frame_dur:.3f}")
-        
-        # Concat demuxer requirement: repeat last file entry
-        last_fpath_posix = os.path.join(temp_dir, f'frame_{msg_count - 1}.png').replace(os.sep, '/')
-        concat_lines.append(f"file '{last_fpath_posix}'")
+        # Background video/color
+        gameplay_file = payload.get('gameplay_file', '')
+        gameplay_path = None
+        if gameplay_file:
+            # Check data/gameplay or assets/demo
+            p1 = os.path.join(os.path.dirname(__file__), 'data', 'gameplay', gameplay_file)
+            p2 = os.path.join(os.path.dirname(__file__), 'assets', 'demo', gameplay_file)
+            if os.path.exists(p1):
+                gameplay_path = p1
+            elif os.path.exists(p2):
+                gameplay_path = p2
 
-        concat_txt = os.path.join(temp_dir, 'concat.txt')
-        with open(concat_txt, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(concat_lines))
-
-        # Background music
+        # Check background music
         bg_sound_file = payload.get('bg_sound_file', '')
         bg_sound_path = None
-        if bg_sound_file and bg_sound_file != 'none':
-            candidate = os.path.join(DATA_DIR, 'music', bg_sound_file)
-            if os.path.exists(candidate):
-                bg_sound_path = candidate
+        if bg_sound_file:
+            p1 = os.path.join(os.path.dirname(__file__), 'data', 'music', bg_sound_file)
+            if os.path.exists(p1):
+                bg_sound_path = p1
 
-        bg_volume = float(payload.get('bg_sound_volume', 0.15))
-
-        set_job_progress(key_code, True, pct=60, msg="Encoding 1080x1920 video with FFmpeg...", elapsed_s=int(time.time() - start_time))
+        set_job_progress(key_code, True, pct=50, msg="Encoding with FFmpeg...", elapsed_s=int(time.time() - start_time))
 
         output_mp4 = os.path.join(VIDEOS_DIR, f'{token}.mp4')
-        ffmpeg_bin = get_ffmpeg()
-        cmd = [ffmpeg_bin, '-y']
 
-        # Inputs and filter setup
-        input_count = 0
-        if has_bg_video:
-            # Input 0: gameplay video
-            ss_arg = f"00:{gameplay_start}" if len(str(gameplay_start).split(':')) == 2 else str(gameplay_start)
-            cmd.extend(['-stream_loop', '-1', '-ss', ss_arg, '-i', gameplay_path])
-            input_count += 1
-            # Input 1: chat animation frames (RGBA PNG with alpha channel)
-            cmd.extend(['-f', 'concat', '-safe', '0', '-i', concat_txt])
-            chat_in_idx = input_count
-            input_count += 1
-            filter_v = f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg];[bg][{chat_in_idx}:v]overlay=0:0[vout]"
+        # Build FFmpeg command
+        # If gameplay video exists, chroma key the green (#00FF00) frame over gameplay
+        # If not, simply render the green frame or solid background
+        cmd = [get_ffmpeg(), '-y']
+
+        if gameplay_path:
+            # Input 0: gameplay video (stream loop)
+            cmd.extend(['-stream_loop', '-1', '-i', gameplay_path])
+            # Input 1: chat frame image (loop)
+            cmd.extend(['-loop', '1', '-i', frame_path])
+            
+            # Complex filter:
+            # Scale gameplay to 1080x1920 (fill/crop), chromakey green out of chat frame, overlay chat over gameplay
+            filter_complex = (
+                "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[bg];"
+                "[1:v]scale=1080:1920,colorkey=0x00FF00:0.3:0.1[fg];"
+                "[bg][fg]overlay=0:0[vout]"
+            )
+            cmd.extend(['-filter_complex', filter_complex, '-map', '[vout]'])
         else:
-            # Direct chat animation frames with background
-            cmd.extend(['-f', 'concat', '-safe', '0', '-i', concat_txt])
-            input_count += 1
-            filter_v = "[0:v]scale=1080:1920[vout]"
+            # Input 0: chat frame image
+            cmd.extend(['-loop', '1', '-i', frame_path])
+            cmd.extend(['-vf', 'scale=1080:1920'])
 
         # Audio inputs
-        voice_in_idx = None
-        has_voice = bool(audio_full_path and os.path.exists(audio_full_path) and os.path.getsize(audio_full_path) > 100)
-        if has_voice:
+        audio_inputs = 0
+        if audio_full_path and os.path.exists(audio_full_path):
             cmd.extend(['-i', audio_full_path])
-            voice_in_idx = input_count
-            input_count += 1
-
-        bgm_in_idx = None
-        has_bgm = bool(bg_sound_path and os.path.exists(bg_sound_path))
-        if has_bgm:
-            cmd.extend(['-stream_loop', '-1', '-i', bg_sound_path])
-            bgm_in_idx = input_count
-            input_count += 1
-
-        # Audio filter
-        if has_voice and has_bgm:
-            filter_a = f";[{voice_in_idx}:a]volume=1.0[voice];[{bgm_in_idx}:a]volume={bg_volume:.2f}[music];[voice][music]amix=inputs=2:duration=first:dropout_transition=2[aout]"
-            cmd.extend(['-filter_complex', filter_v + filter_a, '-map', '[vout]', '-map', '[aout]'])
-        elif has_voice:
-            cmd.extend(['-filter_complex', filter_v, '-map', '[vout]', '-map', f'{voice_in_idx}:a'])
-        elif has_bgm:
-            filter_a = f";[{bgm_in_idx}:a]volume={bg_volume:.2f}[aout]"
-            cmd.extend(['-filter_complex', filter_v + filter_a, '-map', '[vout]', '-map', '[aout]'])
-        else:
-            cmd.extend(['-filter_complex', filter_v, '-map', '[vout]'])
+            speech_idx = 2 if gameplay_path else 1
+            cmd.extend(['-map', f'{speech_idx}:a'])
+            audio_inputs += 1
 
         cmd.extend([
-            '-t', f'{total_duration_s:.3f}',
+            '-t', str(total_duration_s),
             '-c:v', 'libx264',
-            '-preset', 'veryfast',
             '-pix_fmt', 'yuv420p',
             '-c:a', 'aac',
-            '-b:a', '192k',
             '-shortest',
             output_mp4
         ])
 
-        print(f"Executing FFmpeg: {' '.join(cmd)}")
+        print(f"Running FFmpeg: {' '.join(cmd)}")
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         if proc.returncode != 0:
-            err_msg = proc.stderr.decode('utf-8', errors='ignore')[-500:]
-            print(f"FFmpeg error: {err_msg}")
-            # Fallback simple direct render
+            print("FFmpeg error:", proc.stderr.decode('utf-8', errors='ignore')[-500:])
+            # Fallback simple render if complex filter failed
             simple_cmd = [
-                ffmpeg_bin, '-y',
-                '-f', 'concat', '-safe', '0', '-i', concat_txt,
-                '-t', f'{total_duration_s:.3f}',
+                get_ffmpeg(), '-y',
+                '-loop', '1', '-i', frame_path,
+                '-t', str(total_duration_s),
                 '-c:v', 'libx264',
-                '-preset', 'ultrafast',
                 '-pix_fmt', 'yuv420p',
                 output_mp4
             ]
@@ -236,8 +166,4 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
         }
     except Exception as e:
         set_job_progress(key_code, False, pct=0, msg=f"Error: {e}")
-        try:
-            shutil.rmtree(temp_dir)
-        except Exception:
-            pass
         raise e

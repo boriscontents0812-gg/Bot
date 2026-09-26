@@ -4,9 +4,24 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Gengar Studio</title>
 <link rel="icon" type="image/png" href="/assets/favicon.png" />
+<link rel="stylesheet" href="/assets/thought-line.css" />
 <style>
+  .status-container {
+    border-radius: 12px;
+    background: rgba(32, 31, 30, 0.65);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.25s ease;
+  }
+  .status-container:hover {
+    border-color: rgba(255, 64, 136, 0.3);
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   
@@ -299,411 +314,6 @@
     min-height: 80px; line-height: 1.6; white-space: pre-wrap;
   }
 
-  /* ── ThoughtLine Component (React Bits) ── */
-  .thought-line {
-    --tl-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-    --tl-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    --tl-font: 13.5px;
-    --tl-color: var(--foreground);
-    --tl-glyph: #ff8a5c;
-    --tl-settle: 350ms;
-    --tl-blur: 2px;
-    --tl-shimmer: 1.8s;
-    --tl-done: 0.85;
-    --tl-timer: 0.55;
-
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    color: var(--tl-color);
-    font-family: var(--font-sans);
-    font-size: var(--tl-font);
-    font-weight: 500;
-    line-height: 1.3;
-    background: rgba(32, 31, 30, 0.65);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 13px 15px;
-    box-sizing: border-box;
-    width: 100%;
-    min-height: 52px;
-    transition: border-color .25s var(--tl-ease-out), background .25s ease, box-shadow .25s ease;
-  }
-
-  .thought-line[data-working] {
-    border-color: rgba(255, 138, 92, 0.45);
-    background: rgba(40, 36, 32, 0.7);
-    box-shadow: 0 0 20px rgba(255, 138, 92, 0.08);
-  }
-
-  .thought-line[data-error] {
-    border-color: rgba(239, 68, 68, 0.45);
-    box-shadow: 0 0 16px rgba(239, 68, 68, 0.1);
-  }
-
-  .thought-line__head {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4em;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    white-space: nowrap;
-    outline: none;
-    cursor: default;
-    width: 100%;
-  }
-
-  .thought-line__head[data-toggle] {
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .thought-line__glyph {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: 1.25em;
-    height: 1.25em;
-    margin-right: 0.25em;
-    color: var(--tl-glyph);
-    transition: transform .25s var(--tl-ease-out), opacity .25s ease, color .25s ease;
-  }
-
-  .thought-line[data-working] .thought-line__glyph {
-    animation: thought-glyph-pulse 1.6s var(--tl-ease-in-out) infinite;
-  }
-
-  @keyframes thought-glyph-pulse {
-    0%, 100% { opacity: 0.55; transform: scale(0.92); }
-    50% { opacity: 1; transform: scale(1.08); }
-  }
-
-  .thought-line__glyph svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-
-  .thought-line__dot {
-    width: 0.5em;
-    height: 0.5em;
-    margin: auto;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  .thought-line__label {
-    display: inline-grid;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .thought-line__text {
-    grid-area: 1 / 1;
-    width: max-content;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0;
-    filter: blur(var(--tl-blur));
-    transition:
-      opacity var(--tl-settle) var(--tl-ease-out),
-      filter var(--tl-settle) var(--tl-ease-out);
-  }
-
-  .thought-line__text[data-active] {
-    opacity: 1;
-    filter: blur(0);
-  }
-
-  .thought-line__text--done[data-active] {
-    opacity: var(--tl-done);
-  }
-
-  .thought-line__breath {
-    display: inline-block;
-  }
-
-  .thought-line[data-working] .thought-line__breath[data-shimmer] {
-    background: linear-gradient(
-      100deg,
-      rgba(255, 255, 255, 0.45) 25%,
-      #ff8a5c 50%,
-      rgba(255, 255, 255, 0.45) 75%
-    );
-    background-size: 250% 100%;
-    background-position: 125% 0;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    animation: thought-line-shimmer var(--tl-shimmer) linear infinite;
-  }
-
-  @keyframes thought-line-shimmer {
-    to {
-      background-position: -125% 0;
-    }
-  }
-
-  .thought-line__timer {
-    font-variant-numeric: tabular-nums;
-    opacity: var(--tl-timer);
-    font-family: var(--font-mono);
-    font-size: 0.85em;
-    margin-left: auto;
-    padding-left: 8px;
-    color: var(--muted-fg);
-    transition:
-      opacity var(--tl-settle) ease,
-      transform var(--tl-settle) var(--tl-ease-in-out);
-  }
-
-  .thought-line__timer[data-done] {
-    opacity: var(--tl-done);
-    color: #10b981;
-  }
-
-  .thought-line__chevron {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 0.35em;
-    opacity: 0.55;
-    color: var(--muted-fg);
-    transition:
-      opacity 200ms ease,
-      transform 200ms var(--tl-ease-out);
-  }
-
-  .thought-line[data-open] .thought-line__chevron {
-    transform: rotate(180deg);
-  }
-
-  .thought-line__sr {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  .thought-line__trace {
-    display: grid;
-    grid-template-rows: 0fr;
-    width: 100%;
-    transition: grid-template-rows var(--tl-settle) var(--tl-ease-out);
-  }
-
-  .thought-line[data-open] .thought-line__trace {
-    grid-template-rows: 1fr;
-  }
-
-  .thought-line__fold {
-    min-height: 0;
-    overflow-x: visible;
-    overflow-y: clip;
-  }
-
-  .thought-line__steps {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5em;
-    width: 100%;
-    padding: 0.75em 0 0.1em 1.7em;
-    font-size: 0.85em;
-    font-weight: 400;
-  }
-
-  .thought-line__step {
-    display: flex;
-    align-items: center;
-    gap: 0.6em;
-    opacity: 1;
-    transform: translateY(0);
-    transition:
-      opacity 200ms var(--tl-ease-out),
-      transform 200ms var(--tl-ease-out);
-  }
-
-  .thought-line__mark {
-    display: inline-grid;
-    flex: none;
-    place-items: center;
-    width: 1em;
-    height: 1em;
-    opacity: 0.8;
-    color: #10b981;
-  }
-
-  .thought-line__pulse {
-    display: block;
-    width: 0.45em;
-    height: 0.45em;
-    border-radius: 50%;
-    background: var(--tl-glyph);
-    animation: thought-line-pulse 1.6s var(--tl-ease-in-out) infinite;
-  }
-
-  @keyframes thought-line-pulse {
-    0%, 100% {
-      opacity: 0.4;
-      transform: scale(0.85);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.15);
-    }
-  }
-
-  .thought-line__step-text {
-    transition: opacity var(--tl-settle) ease;
-    color: var(--foreground);
-    opacity: 0.9;
-  }
-
-  /* ── ElasticSlider Component (React Bits) ── */
-  .elastic-slider-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    user-select: none;
-    touch-action: none;
-    margin: 4px 0 6px;
-    position: relative;
-  }
-
-  .elastic-slider-root {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-    cursor: grab;
-    touch-action: none;
-    user-select: none;
-    padding: 7px 0;
-    outline: none;
-  }
-
-  .elastic-slider-root[data-dragging] {
-    cursor: grabbing;
-  }
-
-  .elastic-track-wrapper {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    position: relative;
-    transition: transform 0.05s ease-out;
-    will-change: transform;
-  }
-
-  .elastic-track {
-    position: relative;
-    height: 6px;
-    width: 100%;
-    border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
-    transition: height 0.2s cubic-bezier(0.23, 1, 0.32, 1), background 0.2s ease;
-  }
-
-  .elastic-slider-root:hover .elastic-track,
-  .elastic-slider-root[data-dragging] .elastic-track {
-    height: 10px;
-    background: rgba(255, 255, 255, 0.13);
-  }
-
-  .elastic-range {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    background: linear-gradient(90deg, #ff4088 0%, #ff8a5c 100%);
-    border-radius: 9999px;
-    pointer-events: none;
-    transition: width 0.04s ease-out;
-  }
-
-  .elastic-thumb {
-    position: absolute;
-    top: 50%;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #ff4088;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 10px rgba(255, 64, 136, 0.4);
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.18s ease;
-  }
-
-  .elastic-slider-root:hover .elastic-thumb,
-  .elastic-slider-root[data-dragging] .elastic-thumb {
-    transform: translate(-50%, -50%) scale(1.18);
-    box-shadow: 0 0 0 6px rgba(255, 64, 136, 0.24), 0 2px 8px rgba(0, 0, 0, 0.5);
-  }
-
-  .elastic-icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #ff8a5c;
-    cursor: pointer;
-    user-select: none;
-    flex-shrink: 0;
-    transition: transform 0.05s ease-out, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-    will-change: transform;
-    outline: none;
-    padding: 0;
-  }
-
-  .elastic-icon-btn:hover {
-    background: rgba(255, 138, 92, 0.15);
-    border-color: rgba(255, 138, 92, 0.3);
-    color: #ff4088;
-  }
-
-  .elastic-icon-btn:active {
-    transform: scale(0.92);
-  }
-
-  .elastic-icon-btn .icon {
-    width: 14px;
-    height: 14px;
-    color: inherit;
-    display: block;
-  }
-
-  .elastic-hidden-input {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-
   .howto-content {
     padding: 16px 20px 20px; font-size: 13px; color: var(--muted-fg); line-height: 1.6;
     border-top: 1px solid var(--border);
@@ -724,32 +334,10 @@
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
   }
   .logo-icon {
-    width: 34px; height: 34px; border-radius: 9px;
-    background: transparent;
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, #ff4088, #ff8a5c);
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,.25);
-    cursor: pointer;
-    user-select: none;
-    transform-origin: center center;
-    transition: transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-    animation: gengar-breathe 3.5s ease-in-out infinite;
-  }
-  .logo-icon img {
-    width: 100%; height: 100%; border-radius: 9px; object-fit: cover; display: block;
-  }
-  .logo-icon:hover {
-    transform: rotate(-12deg) scale(1.28) !important;
-    box-shadow: 0 8px 24px rgba(46, 204, 113, 0.45), 0 0 14px rgba(180, 251, 77, 0.35);
-    animation: none;
-  }
-  .logo-icon:active,
-  .logo-icon.clicked {
-    transform: rotate(-6deg) scale(1.1) !important;
-  }
-
-  @keyframes gengar-breathe {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-2.5px) rotate(1.2deg); }
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
   }
 
   .logout-btn {
@@ -907,11 +495,11 @@
 <header>
   <div class="header-inner">
     <div style="display:flex;align-items:center;gap:10px">
-      <div class="logo-icon" title="Gengar Studio" onclick="this.classList.toggle('clicked')">
-        <img src="/assets/gengar_pfp_clean.png" alt="Gengar Studio" />
+      <div class="logo-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
       <div>
-        <div style="font-size:15px;font-weight:600;letter-spacing:-.02em">Gengar Studio</div>
+        <div style="font-size:15px;font-weight:600;letter-spacing:-.02em">iMessage Video Generator</div>
         <div style="font-size:11px;color:var(--muted-fg)">Studio · <span id="project-label">Untitled</span></div>
       </div>
     </div>
@@ -1014,7 +602,7 @@
       <p><strong>9. Sponsor overlays</strong> — Three-line blocks for animated overlays. Use <code>rizz</code>, <code>plug</code>, or <code>wing</code> as the first line, then the overlay voice name, then the message line. <strong>rizz</strong> shows the Rizz card overlay, <strong>plug</strong> shows the Plug card, <strong>wing</strong> shows the Wing card — each plays the intro phrase spoken by the given voice, then the message appears in chat with its normal voice.</p>
       <p><strong>10. ElevenLabs &amp; audio</strong> — Add your API key in the left panel, pick a voice profile, then hit <strong>Generate Audio</strong>. Voice names must match your ElevenLabs account (case-insensitive). Review clips in the Audio tab and regenerate individual lines if needed.</p>
       <p><strong>11. Music &amp; gameplay</strong> — Upload background music (mp3/m4a/wav/ogg) and gameplay video (mp4) in the Video settings panel (max 500 MB). Set start time with <code>0:00</code> format. Toggle music fade-out and end fade to black.</p>
-      <p><strong>12. Generate video</strong> — Hit <strong>Generate Video</strong> in the right panel. If it exceeds 8:00, use <strong>Shorten to 8:00</strong> to auto-compress to under 8 minutes. Download from the Video tab.</p>
+      <p><strong>12. Generate video</strong> — Hit <strong>Generate Video</strong> in the right panel. If it exceeds 2:59, use <strong>Shorten to 2:59</strong> to auto-compress to exactly 2:59. Download from the Video tab.</p>
     </div>
   </div>
 
@@ -1279,9 +867,9 @@
           </button>
           <button id="btn-shorten" class="btn btn-warn btn-sm" onclick="doShortenVideo()" style="display:none">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Shorten to 8:00
+            Shorten to 2:59
           </button>
-          <div id="shorten-hint" style="font-size:11px;color:var(--muted-fg);text-align:center;display:none">Shorten re-renders at higher speed to fit under 8 minutes</div>
+          <div id="shorten-hint" style="font-size:11px;color:var(--muted-fg);text-align:center;display:none">Shorten re-renders at higher speed to fit under 3 minutes</div>
         </div>
 
       </div>
@@ -1313,50 +901,17 @@
         </div>
         <div class="divider"></div>
         <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div class="label" style="text-transform:uppercase;letter-spacing:0.05em;font-size:11px;font-weight:700">Status</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="label">Status</div>
             <span style="font-size:11px;color:var(--muted-fg);display:flex;align-items:center;gap:4px">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               Live
             </span>
           </div>
-
-          <div id="thought-line" class="thought-line" style="--tl-font:13.5px;--tl-color:var(--foreground);--tl-glyph:#ff8a5c;--tl-settle:350ms;--tl-blur:2px;--tl-shimmer:1.8s;width:100%">
-            <button type="button" class="thought-line__head" data-toggle aria-expanded="true" onclick="toggleThoughtTrace()">
-              <span class="thought-line__glyph" aria-hidden="true" id="thought-glyph">
-                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.5-6.5l-2.5 2.5m-8 8l-2.5 2.5m13 0l-2.5-2.5m-8-8L4 5"/>
-                </svg>
-              </span>
-              <span class="thought-line__label" aria-hidden="true">
-                <span class="thought-line__text" data-active id="thought-work-wrap">
-                  <span class="thought-line__breath" id="thought-label">
-                    Idle — waiting for your next action.
-                  </span>
-                </span>
-                <span class="thought-line__text thought-line__text--done" id="thought-done-wrap">
-                  <span id="thought-done-label">Done</span>
-                </span>
-              </span>
-              <span class="thought-line__timer" id="thought-timer" aria-hidden="true" style="display:none">
-                0.0s
-              </span>
-              <span class="thought-line__chevron" id="thought-chevron" data-on aria-hidden="true" style="display:none">
-                <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M19 9l-7 7-7-7"/>
-                </svg>
-              </span>
-              <span class="thought-line__sr" role="status" id="thought-sr">Idle — waiting for your next action.</span>
-            </button>
-
-            <div class="thought-line__trace" id="thought-trace" aria-hidden="true">
-              <div class="thought-line__fold">
-                <div class="thought-line__steps" id="thought-steps"></div>
-              </div>
-            </div>
+          <div class="status-container" id="status-container">
+            <div id="thought-line-root"></div>
+            <div class="status-mono" id="status-box" style="display:none">Idle — waiting for your next action.</div>
           </div>
-          <!-- Hidden fallback element for any legacy script selectors -->
-          <div class="status-mono" id="status-box" style="display:none">Idle — waiting for your next action.</div>
         </div>
       </div>
 
@@ -1513,7 +1068,7 @@
             <div class="row"><span>Notification sound</span><button id="switch-notif-sound" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
             <div class="row"><span>Header persistent</span><button id="switch-header-persistent" class="ios-switch" onclick="toggleSwitch(this);refreshPreview()"></button></div>
             <div class="row"><span>Header gradient</span><button id="switch-header-gradient" class="ios-switch" onclick="toggleSwitch(this);refreshPreview()"></button></div>
-            <div class="row"><span>Auto-shorten to 8:00</span><button id="switch-shorten" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
+            <div class="row"><span>Auto-shorten to 2:59</span><button id="switch-shorten" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
             <div class="row"><span>Sent bubble fade</span><button class="ios-switch" id="switch-bfade" onclick="toggleSwitch(this);toggleBubbleFade();refreshPreview()"></button></div>
             <div id="bfade-intensity" style="display:none" class="field-group">
               <div class="slider-header"><div class="label">Fade intensity</div><span class="slider-val" id="val-bfade">60%</span></div>
@@ -1568,13 +1123,13 @@
                 <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
                   <span style="font-size:12px;color:var(--muted-fg);font-weight:500;line-height:1">Gameplay video</span>
                   <div class="select-wrap">
-                    <select class="field" id="gameplay-select" style="font-size:12px" onchange="refreshPreview()"><option>none</option></select>
+                    <select class="field" id="gameplay-select" style="font-size:12px"><option>none</option></select>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                   </div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
                   <span style="font-size:12px;color:var(--muted-fg);font-weight:500;line-height:1">Start</span>
-                  <input type="text" id="gameplay-start" class="field" value="0:00" placeholder="0:00" style="width:56px" oninput="refreshPreview()" />
+                  <input type="text" id="gameplay-start" class="field" value="0:00" placeholder="0:00" style="width:56px" />
                 </div>
               </div>
               <div id="crossfade-row" style="display:none;flex-direction:column;gap:8px">
@@ -1730,7 +1285,7 @@
               </div>
               <div class="row"><span>Fade between groups</span><button id="wa-switch-group-fade" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
               <div class="row"><span>Notification sound</span><button id="wa-switch-notif-sound" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
-              <div class="row"><span>Auto-shorten to 8:00</span><button id="wa-switch-shorten" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
+              <div class="row"><span>Auto-shorten to 2:59</span><button id="wa-switch-shorten" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
               <div class="row"><span>Container shadow</span><button id="wa-switch-shadow" class="ios-switch on" onclick="toggleSwitch(this);refreshPreview()"></button></div>
               <div class="row"><span>Pop-in effect</span><button id="wa-switch-popin" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
               <div style="display:flex;gap:8px;margin-top:4px">
@@ -1778,13 +1333,13 @@
                   <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
                     <span style="font-size:12px;color:var(--muted-fg);font-weight:500;line-height:1">Gameplay video</span>
                     <div class="select-wrap">
-                      <select class="field" id="wa-gameplay-select" style="font-size:12px" onchange="refreshPreview()"><option>none</option></select>
+                      <select class="field" id="wa-gameplay-select" style="font-size:12px"><option>none</option></select>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                   </div>
                   <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
                     <span style="font-size:12px;color:var(--muted-fg);font-weight:500;line-height:1">Start</span>
-                    <input type="text" id="wa-gameplay-start" class="field" value="0:00" placeholder="0:00" style="width:56px" oninput="refreshPreview()" />
+                    <input type="text" id="wa-gameplay-start" class="field" value="0:00" placeholder="0:00" style="width:56px" />
                   </div>
                 </div>
                 <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:36px" onclick="loadGameplayList()">
@@ -2198,9 +1753,6 @@
         rounded_corners: document.querySelector('#wa-corners-seg button.active')?.textContent?.trim() === 'Rounded' ? 1 : 0,
         corner_radius:   +(document.getElementById('wa-corner-radius')?.value ?? 35),
         container_shadow: document.getElementById('wa-switch-shadow')?.classList.contains('on') ? 1 : 0,
-        gameplay_on:      document.getElementById('wa-switch-gameplay')?.classList.contains('on') ?? false,
-        gameplay_file:    document.getElementById('wa-gameplay-select')?.value ?? '',
-        gameplay_start:   document.getElementById('wa-gameplay-start')?.value ?? '0:00',
       };
     }
     return {
@@ -2232,9 +1784,6 @@
       bubble_fade:           document.getElementById('switch-bfade')?.classList.contains('on') ? 1 : 0,
       bubble_fade_intensity: +(document.querySelector('input[oninput*="val-bfade"]')?.value ?? 60),
       container_shadow:      document.getElementById('switch-container-shadow')?.classList.contains('on') ? 1 : 0,
-      gameplay_on:           document.getElementById('switch-gameplay')?.classList.contains('on') ?? false,
-      gameplay_file:         document.getElementById('gameplay-select')?.value ?? '',
-      gameplay_start:        document.getElementById('gameplay-start')?.value ?? '0:00',
     };
   }
 
@@ -2451,12 +2000,10 @@
     const on = document.getElementById('switch-gameplay').classList.contains('on');
     document.getElementById('gameplay-options').style.display = on ? 'flex' : 'none';
     document.getElementById('crossfade-row').style.display = (on && CROSSFADE_ENABLED) ? 'flex' : 'none';
-    refreshPreview();
   }
   function toggleWaGameplay() {
     const on = document.getElementById('wa-switch-gameplay').classList.contains('on');
     document.getElementById('wa-gameplay-options').style.display = on ? 'flex' : 'none';
-    refreshPreview();
   }
 
 // ── Segmented ──────────────────────────────────────────────────────────────────
@@ -2582,392 +2129,13 @@
     };
   }
 
-  // ── ThoughtLine Controller (React Bits Component) ─────────────────────────────
-  let _thoughtTimerId = null;
-  let _thoughtStart = 0;
-  let _thoughtIsOpen = false;
-  let _thoughtSteps = [];
-
-  function toggleThoughtTrace() {
-    const tl = document.getElementById('thought-line');
-    if (!tl || !_thoughtSteps.length) return;
-    _thoughtIsOpen = !_thoughtIsOpen;
-    if (_thoughtIsOpen) tl.setAttribute('data-open', '');
-    else tl.removeAttribute('data-open');
-  }
-
-  function setThoughtLine({ working = false, label = '', doneLabel = '', steps = [], done = false, error = false }) {
-    const tl = document.getElementById('thought-line');
-    const labelEl = document.getElementById('thought-label');
-    const doneLabelEl = document.getElementById('thought-done-label');
-    const workWrap = document.getElementById('thought-work-wrap');
-    const doneWrap = document.getElementById('thought-done-wrap');
-    const timerEl = document.getElementById('thought-timer');
-    const chevronEl = document.getElementById('thought-chevron');
-    const stepsEl = document.getElementById('thought-steps');
-    const srEl = document.getElementById('thought-sr');
-    const glyphEl = document.getElementById('thought-glyph');
-
-    if (!tl) return;
-
-    if (error) {
-      tl.removeAttribute('data-working');
-      tl.setAttribute('data-error', '');
-      workWrap?.setAttribute('data-active', '');
-      doneWrap?.removeAttribute('data-active');
-      labelEl?.removeAttribute('data-shimmer');
-      if (labelEl) labelEl.textContent = label;
-      if (timerEl) timerEl.style.display = 'none';
-      if (glyphEl) glyphEl.style.color = '#ef4444';
-      if (_thoughtTimerId) { clearInterval(_thoughtTimerId); _thoughtTimerId = null; }
-    } else if (working) {
-      tl.removeAttribute('data-error');
-      tl.setAttribute('data-working', '');
-      workWrap?.setAttribute('data-active', '');
-      doneWrap?.removeAttribute('data-active');
-      labelEl?.setAttribute('data-shimmer', '');
-      if (label && labelEl) labelEl.textContent = label;
-      if (timerEl) {
-        timerEl.style.display = 'inline-block';
-        timerEl.removeAttribute('data-done');
-      }
-      if (!_thoughtTimerId) {
-        _thoughtStart = performance.now();
-        _thoughtTimerId = setInterval(() => {
-          const ds = Math.floor((performance.now() - _thoughtStart) / 100);
-          if (timerEl) timerEl.textContent = ds < 600 ? `${(ds / 10).toFixed(1)}s` : `${Math.floor(ds / 600)}m ${((ds % 600) / 10).toFixed(1)}s`;
-        }, 100);
-      }
-      if (glyphEl) glyphEl.style.color = 'var(--tl-glyph)';
-    } else {
-      tl.removeAttribute('data-working');
-      tl.removeAttribute('data-error');
-      if (_thoughtTimerId) {
-        clearInterval(_thoughtTimerId);
-        _thoughtTimerId = null;
-      }
-      if (done) {
-        workWrap?.removeAttribute('data-active');
-        doneWrap?.setAttribute('data-active', '');
-        labelEl?.removeAttribute('data-shimmer');
-        if (doneLabel && doneLabelEl) doneLabelEl.textContent = doneLabel;
-        if (timerEl) {
-          timerEl.setAttribute('data-done', '');
-        }
-        if (glyphEl) glyphEl.style.color = '#10b981';
-      } else {
-        // Idle
-        workWrap?.setAttribute('data-active', '');
-        doneWrap?.removeAttribute('data-active');
-        labelEl?.removeAttribute('data-shimmer');
-        if (label && labelEl) labelEl.textContent = label;
-        if (timerEl) timerEl.style.display = 'none';
-        if (glyphEl) glyphEl.style.color = 'var(--muted-fg)';
-      }
-    }
-
-    // Render Steps
-    _thoughtSteps = steps || [];
-    if (steps && steps.length > 0) {
-      if (chevronEl) chevronEl.style.display = 'inline-flex';
-      tl.setAttribute('data-open', '');
-      _thoughtIsOpen = true;
-      if (stepsEl) {
-        stepsEl.innerHTML = steps.map((s, i) => {
-          const isDone = !working || i < steps.length - 1;
-          const tickSvg = `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>`;
-          const mark = isDone ? tickSvg : `<i class="thought-line__pulse"></i>`;
-          return `<div class="thought-line__step" ${isDone ? 'data-done' : ''}><span class="thought-line__mark" aria-hidden="true">${mark}</span><span class="thought-line__step-text">${esc(s)}</span></div>`;
-        }).join('');
-      }
-    } else {
-      if (chevronEl) chevronEl.style.display = 'none';
-      tl.removeAttribute('data-open');
-      _thoughtIsOpen = false;
-      if (stepsEl) stepsEl.innerHTML = '';
-    }
-
-    if (srEl) srEl.textContent = label || doneLabel;
-  }
-
-  // ── Status box bridge ───────────────────────────────────────────────────────────
+  // ── Status box ─────────────────────────────────────────────────────────────────
   function setStatus(msg) {
-    const sb = document.getElementById('status-box');
-    if (sb) sb.textContent = msg;
-
-    const lower = (msg || '').toLowerCase();
-    if (!msg || lower.includes('idle')) {
-      setThoughtLine({ working: false, done: false, label: 'Idle — waiting for your next action.', steps: [] });
-    } else if (lower.startsWith('error')) {
-      setThoughtLine({ working: false, error: true, label: msg, steps: [] });
-    } else if (msg.startsWith('✅') || lower.includes('ready') || lower.includes('regenerated')) {
-      setThoughtLine({ working: false, done: true, doneLabel: msg, steps: _thoughtSteps });
-    } else if (lower.includes('generating audio') || lower.includes('audio progress')) {
-      setThoughtLine({
-        working: true,
-        label: msg,
-        steps: ['Analyzing dialogue script', 'Connecting to ElevenLabs API', 'Synthesizing voice clips in parallel', 'Concatenating full master audio track']
-      });
-    } else if (lower.includes('building video') || lower.includes('encoding') || lower.includes('shortening')) {
-      setThoughtLine({
-        working: true,
-        label: msg,
-        steps: ['Rendering high-res chat bubbles', 'Compositing background gameplay stream', 'Hardware accelerated video encoding', 'Finalizing instant download package']
-      });
-    } else if (lower.includes('saving') || lower.includes('saved')) {
-      setThoughtLine({ working: false, done: true, doneLabel: msg, steps: [] });
-    } else {
-      setThoughtLine({ working: false, done: false, label: msg, steps: [] });
+    const el = document.getElementById('status-box');
+    if (el) el.textContent = msg;
+    if (window.thoughtLine && typeof window.thoughtLine.updateFromStatus === 'function') {
+      window.thoughtLine.updateFromStatus(msg);
     }
-  }
-
-  // ── ElasticSlider Controller (React Bits Component) ───────────────────────────
-  function initElasticSliders() {
-    document.querySelectorAll('input[type="range"].slider').forEach(input => {
-      if (input.closest('.elastic-slider-wrapper')) return;
-
-      const wrapper = document.createElement('div');
-      wrapper.className = 'elastic-slider-wrapper';
-
-      const btnLeft = document.createElement('button');
-      btnLeft.type = 'button';
-      btnLeft.className = 'elastic-icon-btn elastic-btn-left';
-      btnLeft.setAttribute('aria-label', 'Decrease');
-      btnLeft.tabIndex = -1;
-      btnLeft.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
-
-      const btnRight = document.createElement('button');
-      btnRight.type = 'button';
-      btnRight.className = 'elastic-icon-btn elastic-btn-right';
-      btnRight.setAttribute('aria-label', 'Increase');
-      btnRight.tabIndex = -1;
-      btnRight.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
-
-      const root = document.createElement('div');
-      root.className = 'elastic-slider-root';
-      root.tabIndex = 0;
-
-      const trackWrap = document.createElement('div');
-      trackWrap.className = 'elastic-track-wrapper';
-
-      const track = document.createElement('div');
-      track.className = 'elastic-track';
-
-      const range = document.createElement('div');
-      range.className = 'elastic-range';
-
-      const thumb = document.createElement('div');
-      thumb.className = 'elastic-thumb';
-
-      track.appendChild(range);
-      track.appendChild(thumb);
-      trackWrap.appendChild(track);
-      root.appendChild(trackWrap);
-
-      input.parentNode.insertBefore(wrapper, input);
-      wrapper.appendChild(btnLeft);
-      wrapper.appendChild(root);
-      wrapper.appendChild(btnRight);
-      root.appendChild(input);
-
-      input.classList.add('elastic-hidden-input');
-
-      const updateDisplay = () => {
-        const min = parseFloat(input.min !== '' ? input.min : '0');
-        const max = parseFloat(input.max !== '' ? input.max : '100');
-        const val = parseFloat(input.value !== '' ? input.value : min);
-        const span = max - min;
-        const pct = span > 0 ? Math.max(0, Math.min(100, ((val - min) / span) * 100)) : 0;
-        range.style.width = pct + '%';
-        thumb.style.left = pct + '%';
-        root.setAttribute('role', 'slider');
-        root.setAttribute('aria-valuemin', min);
-        root.setAttribute('aria-valuemax', max);
-        root.setAttribute('aria-valuenow', val);
-      };
-
-      updateDisplay();
-      input.addEventListener('input', updateDisplay);
-
-      // Intercept programmatic .value assignments so ElasticSlider updates instantly
-      const descriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-      if (descriptor) {
-        Object.defineProperty(input, 'value', {
-          get: function() { return descriptor.get.call(this); },
-          set: function(v) {
-            descriptor.set.call(this, v);
-            updateDisplay();
-          },
-          configurable: true
-        });
-      }
-
-      // Elastic Physics & Drag Handling
-      const MAX_OVERFLOW = 45;
-      function decay(val, max) {
-        if (max === 0) return 0;
-        const entry = val / max;
-        const sigmoid = 2 * (1 / (1 + Math.exp(-entry)) - 0.5);
-        return sigmoid * max;
-      }
-
-      let isDragging = false;
-      let overflow = 0;
-      let region = 'middle';
-      let animFrame = null;
-
-      function applyPhysics(ov, reg, clientX, rect) {
-        if (!rect || rect.width <= 0) return;
-        if (reg === 'left') {
-          trackWrap.style.transform = `scaleX(${1 + ov / rect.width}) scaleY(${1 - (ov / MAX_OVERFLOW) * 0.22})`;
-          trackWrap.style.transformOrigin = 'right center';
-          btnLeft.style.transform = `translateX(${-ov}px) scale(${1 + (ov / MAX_OVERFLOW) * 0.35})`;
-          btnRight.style.transform = '';
-        } else if (reg === 'right') {
-          trackWrap.style.transform = `scaleX(${1 + ov / rect.width}) scaleY(${1 - (ov / MAX_OVERFLOW) * 0.22})`;
-          trackWrap.style.transformOrigin = 'left center';
-          btnRight.style.transform = `translateX(${ov}px) scale(${1 + (ov / MAX_OVERFLOW) * 0.35})`;
-          btnLeft.style.transform = '';
-        } else {
-          trackWrap.style.transform = '';
-          trackWrap.style.transformOrigin = 'center center';
-          btnLeft.style.transform = '';
-          btnRight.style.transform = '';
-        }
-      }
-
-      function onPointerMove(e) {
-        if (!isDragging) return;
-        const rect = track.getBoundingClientRect();
-        if (rect.width <= 0) return;
-        const min = parseFloat(input.min !== '' ? input.min : '0');
-        const max = parseFloat(input.max !== '' ? input.max : '100');
-        const step = parseFloat(input.step !== '' && input.step !== 'any' ? input.step : '1');
-
-        let newValue = min + ((e.clientX - rect.left) / rect.width) * (max - min);
-        if (step > 0) {
-          newValue = Math.round((newValue - min) / step) * step + min;
-        }
-        newValue = Math.min(Math.max(newValue, min), max);
-
-        if (e.clientX < rect.left) {
-          region = 'left';
-          overflow = decay(rect.left - e.clientX, MAX_OVERFLOW);
-        } else if (e.clientX > rect.right) {
-          region = 'right';
-          overflow = decay(e.clientX - rect.right, MAX_OVERFLOW);
-        } else {
-          region = 'middle';
-          overflow = 0;
-        }
-
-        if (input.value != newValue) {
-          input.value = newValue;
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        updateDisplay();
-        applyPhysics(overflow, region, e.clientX, rect);
-      }
-
-      function onPointerUp(e) {
-        if (!isDragging) return;
-        isDragging = false;
-        root.removeAttribute('data-dragging');
-        try { root.releasePointerCapture(e.pointerId); } catch(_) {}
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-
-        if (overflow > 0.1) {
-          if (animFrame) cancelAnimationFrame(animFrame);
-          let curOv = overflow;
-          let vel = 0;
-          const k = 0.24;
-          const d = 0.72;
-          const savedRegion = region;
-          const rect = track.getBoundingClientRect();
-
-          function springStep() {
-            const force = -k * curOv;
-            vel = (vel + force) * d;
-            curOv += vel;
-            applyPhysics(curOv, savedRegion, 0, rect);
-            if (Math.abs(curOv) > 0.08 || Math.abs(vel) > 0.08) {
-              animFrame = requestAnimationFrame(springStep);
-            } else {
-              applyPhysics(0, 'middle', 0, rect);
-            }
-          }
-          animFrame = requestAnimationFrame(springStep);
-        } else {
-          applyPhysics(0, 'middle', 0, track.getBoundingClientRect());
-        }
-      }
-
-      root.addEventListener('pointerdown', e => {
-        if (animFrame) cancelAnimationFrame(animFrame);
-        isDragging = true;
-        root.setAttribute('data-dragging', '');
-        try { root.setPointerCapture(e.pointerId); } catch(_) {}
-        onPointerMove(e);
-      });
-      root.addEventListener('pointermove', onPointerMove);
-      root.addEventListener('pointerup', onPointerUp);
-      root.addEventListener('pointercancel', onPointerUp);
-
-      // Keyboard support
-      root.addEventListener('keydown', e => {
-        const min = parseFloat(input.min !== '' ? input.min : '0');
-        const max = parseFloat(input.max !== '' ? input.max : '100');
-        const step = parseFloat(input.step !== '' && input.step !== 'any' ? input.step : '1');
-        let cur = parseFloat(input.value !== '' ? input.value : min);
-
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-          e.preventDefault();
-          input.value = Math.max(min, cur - step);
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          updateDisplay();
-        } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-          e.preventDefault();
-          input.value = Math.min(max, cur + step);
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          updateDisplay();
-        } else if (e.key === 'Home') {
-          e.preventDefault();
-          input.value = min;
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          updateDisplay();
-        } else if (e.key === 'End') {
-          e.preventDefault();
-          input.value = max;
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          updateDisplay();
-        }
-      });
-
-      // Step Buttons
-      btnLeft.addEventListener('click', () => {
-        const min = parseFloat(input.min !== '' ? input.min : '0');
-        const step = parseFloat(input.step !== '' && input.step !== 'any' ? input.step : '1');
-        const cur = parseFloat(input.value !== '' ? input.value : min);
-        input.value = Math.max(min, cur - step);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        updateDisplay();
-      });
-
-      btnRight.addEventListener('click', () => {
-        const max = parseFloat(input.max !== '' ? input.max : '100');
-        const step = parseFloat(input.step !== '' && input.step !== 'any' ? input.step : '1');
-        const cur = parseFloat(input.value !== '' ? input.value : 0);
-        input.value = Math.min(max, cur + step);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        updateDisplay();
-      });
-    });
   }
 
   // ── Audio generation ───────────────────────────────────────────────────────────
@@ -3188,7 +2356,6 @@
     const gameplayFile  = document.getElementById('gameplay-select')?.value ?? '';
     const gameplayStart = document.getElementById('gameplay-start')?.value ?? '0:00';
     const bgSoundFile   = document.getElementById('bg-sound-select')?.value ?? '';
-    const scriptText    = document.getElementById('script-input')?.value.trim() ?? '';
 
     if (_currentStyle === 'whatsapp') {
       const speed        = +(document.getElementById('wa-audio-speed')?.value ?? 100) / 100;
@@ -3197,8 +2364,7 @@
       const waGpStart    = document.getElementById('wa-gameplay-start')?.value ?? '0:00';
       const waBgSound    = document.getElementById('wa-bg-sound-select')?.value ?? '';
       return {
-        script:           scriptText,
-        settings:         { ...s, script: scriptText },
+        settings:         s,
         project:          _currentProject,
         rounded_corners:  s.rounded_corners,
         corner_radius:    s.corner_radius,
@@ -3225,8 +2391,7 @@
     const corners       = segmenteds[0]?.querySelector('button.active')?.textContent?.trim();
     const animation     = segmenteds[1]?.querySelector('button.active')?.textContent?.trim();
     return {
-      script:            scriptText,
-      settings:          { ...s, script: scriptText },
+      settings:          s,
       project:           _currentProject,
       animation_mode:    animation?.toLowerCase().includes('slide') ? 'slide' : 'crop',
       rounded_corners:   corners === 'Rounded',
@@ -3292,28 +2457,14 @@
     try {
       const s = getSettings();
       const _genStart = Date.now();
-      let oldToken = _currentVideoToken || '';
-      if (!oldToken) {
-        try {
-          const lvCheck = await fetch('/api/last_video');
-          if (lvCheck.ok) {
-            const lvd = await lvCheck.json();
-            if (lvd.token) oldToken = lvd.token;
-          }
-        } catch(_) {}
-      }
-      let res = null, d = {};
-      try {
-        res = await fetch('/api/generate_video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(_buildVideoPayload(s)),
-        });
-        d = await safeJson(res);
-      } catch (err) {
-        console.warn('generate_video connection finished or timed out, polling last_video:', err);
-      }
+      const oldToken = _currentVideoToken || '';
+      const res = await fetch('/api/generate_video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(_buildVideoPayload(s)),
+      });
       clearInterval(_progressPoll);
+      const d = await safeJson(res);
 
       if (!d.token) {
         // Video is rendering in the background or function returned 202/timeout
@@ -3345,7 +2496,7 @@
           } catch(_) {}
         }
         if (!gotVideo && !d.token) {
-          if (res && !res.ok && res.status !== 504 && res.status !== 202) {
+          if (!res.ok && res.status !== 504 && res.status !== 202) {
             setStatus('Error: ' + (d.detail || 'Unknown error'));
             return;
           }
@@ -3369,11 +2520,11 @@
 
       const _shortenId  = _currentStyle === 'whatsapp' ? 'wa-switch-shorten' : 'switch-shorten';
       const autoShorten = document.getElementById(_shortenId)?.classList.contains('on');
-      if (autoShorten && _currentVideoDuration > 480) {
-        setStatus(`Video is ${durStr} — auto-shortening to 8:00…`);
+      if (autoShorten && _currentVideoDuration > 179) {
+        setStatus(`Video is ${durStr} — auto-shortening to 2:59…`);
         await doShortenVideo();
-      } else if (_currentVideoDuration > 480) {
-        setStatus(`✅ Video ready! ${durStr} · generated in ${genSecs}s — over 8:00, use Shorten if needed.`);
+      } else if (_currentVideoDuration > 179) {
+        setStatus(`✅ Video ready! ${durStr} · generated in ${genSecs}s — over 2:59, use Shorten if needed.`);
       } else {
         setStatus(`✅ Video ready! ${durStr} · generated in ${genSecs}s`);
       }
@@ -3420,24 +2571,24 @@
   }
 
   function _updateShortenVisibility() {
-    const show = _currentVideoDuration > 480;
+    const show = _currentVideoDuration > 179;
     document.getElementById('btn-shorten').style.display  = show ? '' : 'none';
     document.getElementById('shorten-hint').style.display = show ? '' : 'none';
   }
 
-  // ── Shorten to 8:00 ────────────────────────────────────────────────────────────
+  // ── Shorten to 2:59 ────────────────────────────────────────────────────────────
   async function doShortenVideo() {
     if (IS_DEMO) { showDemoModal(); return; }
     if (!_currentVideoToken) { setStatus('Generate video first.'); return; }
-    if (_currentVideoDuration > 0 && _currentVideoDuration <= 480) {
-      setStatus('Video is already under 8:00.'); return;
+    if (_currentVideoDuration > 0 && _currentVideoDuration <= 179) {
+      setStatus('Video is already under 2:59.'); return;
     }
 
     const btn = document.getElementById('btn-shorten');
     btn.disabled = true;
     const orig = btn.innerHTML;
     btn.textContent = 'Shortening…';
-    setStatus('Shortening to 8:00 — re-rendering at higher speed…');
+    setStatus('Shortening to 2:59 — re-rendering at higher speed…');
 
     try {
       const s = getSettings();
@@ -3765,7 +2916,6 @@
         body: JSON.stringify({
           script: document.getElementById('script-input').value,
           settings: getSettings(),
-          clip_metadata: _audioClips,
         }),
       });
     } catch(e) {}
@@ -3782,9 +2932,7 @@
       const sb = document.getElementById('status-box');
       if (sb && !sb.textContent.startsWith('Error')) {
         const prev = sb.textContent;
-        if (!prev.includes('(auto-saved)')) {
-          setStatus(prev + ' (auto-saved)');
-        }
+        if (!prev.includes('(auto-saved)')) sb.textContent = prev + ' (auto-saved)';
       }
     }, 3000);
   }
@@ -4238,9 +3386,7 @@ alex
     }
   }
 
-  initElasticSliders();
   loadSettings();
-  window.addEventListener('DOMContentLoaded', initElasticSliders);
   if (IS_DEMO) {
     // Force dark mode
     if (!isAppDark) toggleDarkMode();
@@ -4378,6 +3524,25 @@ alex
     setTimeout(showStudioPopup, 300000);
   }
 })();
+</script>
+<script src="/assets/thought-line.js"></script>
+<script>
+  if (typeof window.initThoughtLine === 'function') {
+    window.initThoughtLine('thought-line-root', {
+      working: false,
+      doneLabel: 'Idle — waiting for your next action.',
+      glyph: 'sparkle',
+      glyphColor: '#ff4088',
+      fontSize: 14,
+      breathPeriod: 1.6,
+      breathDepth: 0.45,
+      settleDuration: 350,
+      settleBlur: 2,
+      collapsible: true,
+      collapseOnSettle: false,
+      showTimer: true
+    });
+  }
 </script>
 </body>
 </html>

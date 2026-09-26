@@ -1,0 +1,30 @@
+{
+  "name": "bot",
+  "version": "1.0.0",
+  "description": "A complete, high-fidelity recreation of [botyk.app](https://botyk.app/) — the viral iMessage and WhatsApp conversation video generator with ElevenLabs TTS, realistic bubble rendering, gameplay backgrounds, and vertical 9:16 export.",
+  "main": "app_script_0.js",
+  "scripts": {
+    "build:thought-line": "esbuild components/mountThoughtLine.jsx --bundle --minify --outfile=assets/thought-line.js --define:process.env.NODE_ENV=\\\"production\\\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boriscontents0812-gg/Bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/boriscontents0812-gg/Bot/issues"
+  },
+  "homepage": "https://github.com/boriscontents0812-gg/Bot#readme",
+  "dependencies": {
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
+    "esbuild": "^0.28.2",
+    "motion": "^13.4.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}
