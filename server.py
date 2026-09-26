@@ -46,6 +46,61 @@ app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 # Audio progress state per key
 audio_progress = {}
 
+VALID_ELEVEN_VOICES = {
+    'roger', 'sarah', 'laura', 'charlie', 'george', 'callum', 'river', 'harry',
+    'liam', 'alice', 'matilda', 'will', 'jessica', 'eric', 'bella', 'chris',
+    'brian', 'daniel', 'lily', 'adam', 'bill', 'natasha', 'jimbo', 'nicole'
+}
+
+FEMALE_FALLBACKS = ['sarah', 'jessica', 'laura', 'alice', 'bella', 'lily', 'matilda', 'natasha', 'nicole']
+MALE_FALLBACKS = ['roger', 'charlie', 'brian', 'harry', 'liam', 'will', 'eric', 'daniel', 'adam', 'bill']
+
+def get_upstream_client(timeout: float = 30.0) -> httpx.AsyncClient:
+    """Forces IPv4 to avoid hanging on dead IPv6 addresses for botyk.app."""
+    try:
+        transport = httpx.AsyncHTTPTransport(local_address="0.0.0.0")
+        return httpx.AsyncClient(transport=transport, timeout=timeout)
+    except Exception:
+        return httpx.AsyncClient(timeout=timeout)
+
+def sanitize_script_voices_for_upstream(script_text: str) -> str:
+    """
+    Ensures character voice names after 1: or 2: match valid ElevenLabs voice names
+    expected by botyk.app, preventing 'TTS error: Voice X not found in ElevenLabs'.
+    Maps unrecognized side 1 voices to diverse female voices, and side 2 voices to male voices.
+    """
+    if not script_text:
+        return ""
+    lines = script_text.splitlines()
+    out = []
+    mapped = {}
+    f_idx = 0
+    m_idx = 0
+    for line in lines:
+        m = re.match(r'^(1|2):\s*([^>]+?)\s*>\s*(.+)$', line)
+        if m:
+            side = int(m.group(1))
+            name = m.group(2).strip()
+            rest = m.group(3)
+            if name.lower().startswith('img:'):
+                out.append(line)
+                continue
+            name_clean = name.split()[0].lower()
+            if name_clean in VALID_ELEVEN_VOICES:
+                out.append(f"{side}:{name_clean.capitalize()}> {rest}")
+            else:
+                if name not in mapped:
+                    if side == 1:
+                        mapped[name] = FEMALE_FALLBACKS[f_idx % len(FEMALE_FALLBACKS)].capitalize()
+                        f_idx += 1
+                    else:
+                        mapped[name] = MALE_FALLBACKS[m_idx % len(MALE_FALLBACKS)].capitalize()
+                        m_idx += 1
+                out.append(f"{side}:{mapped[name]}> {rest}")
+        else:
+            out.append(line)
+    return "\n".join(out)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Helper: Session Auth
 # ─────────────────────────────────────────────────────────────────────────────
@@ -270,24 +325,55 @@ async def generate_audio(request: Request):
     data = await request.json()
     script = data.get("script", "")
 
-    # 1. Attempt upstream generation for exact ElevenLabs voices
+    # 1. Sync ElevenLabs API key to upstream if configured
     try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        with get_db() as conn:
+            u_row = conn.execute("SELECT eleven_key FROM access_keys WHERE UPPER(code) = ?", (key.upper(),)).fetchone()
+            if u_row and u_row["eleven_key"]:
+                e_key = u_row["eleven_key"]
+                async with get_upstream_client(timeout=4.0) as client:
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_key", json={"key": e_key}, headers={"Cookie": f"imsg_session={key}"})
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles", json={"name": "active", "key": e_key}, headers={"Cookie": f"imsg_session={key}"})
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles/active/activate", headers={"Cookie": f"imsg_session={key}"})
+    except Exception:
+        pass
+
+    # 2. Upstream audio generation with sanitized voice names
+    upstream_data = data.copy()
+    upstream_data["script"] = sanitize_script_voices_for_upstream(script)
+
+    try:
+        async with get_upstream_client(timeout=45.0) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_audio",
-                json=data,
+                json=upstream_data,
                 headers={"Content-Type": "application/json", "Cookie": f"imsg_session={key}"}
             )
             if resp.status_code == 200:
                 up_res = resp.json()
                 if isinstance(up_res, dict):
                     up_res["credits_used"] = 0
+                # Pre-cache full audio for instant client playback
+                try:
+                    full_resp = await client.get(
+                        f"{UPSTREAM_BASE}/api/audio_full",
+                        headers={"Cookie": f"imsg_session={key}"}
+                    )
+                    if full_resp.status_code == 200:
+                        user_audio_dir = os.path.join(DATA_DIR, "audio", key)
+                        os.makedirs(user_audio_dir, exist_ok=True)
+                        with open(os.path.join(user_audio_dir, "audio_full.wav"), "wb") as f:
+                            f.write(full_resp.content)
+                except Exception:
+                    pass
                 return up_res
-            elif resp.status_code in (400, 422, 500):
+            elif resp.status_code in (400, 422):
                 try:
                     return JSONResponse(status_code=resp.status_code, content=resp.json())
                 except Exception:
                     pass
+            else:
+                print(f"Notice: Upstream audio returned {resp.status_code}, falling back to local synthesis")
     except httpx.TimeoutException:
         print("Notice: Upstream audio timed out at 45s, attempting local generation")
     except Exception as e:
@@ -524,13 +610,21 @@ async def generate_video(request: Request):
     key = require_auth(request)
     payload = await request.json()
 
+    # Sanitize script voices for upstream to prevent TTS/character lookup failures
+    upstream_payload = payload.copy()
+    if "script" in upstream_payload and upstream_payload["script"]:
+        upstream_payload["script"] = sanitize_script_voices_for_upstream(upstream_payload["script"])
+    if "settings" in upstream_payload and isinstance(upstream_payload.get("settings"), dict) and "script" in upstream_payload["settings"]:
+        upstream_payload["settings"] = upstream_payload["settings"].copy()
+        upstream_payload["settings"]["script"] = sanitize_script_voices_for_upstream(upstream_payload["settings"]["script"])
+
     # 1. Upstream video generation
     try:
         # Keep timeout at 45.0s to ensure we never hit Vercel's 60s Serverless limit
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        async with get_upstream_client(timeout=45.0) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_video",
-                json=payload,
+                json=upstream_payload,
                 headers={"Content-Type": "application/json", "Cookie": f"imsg_session={key}"}
             )
             if resp.status_code == 200:
@@ -549,7 +643,11 @@ async def generate_video(request: Request):
                 return v_res
             elif resp.status_code in (400, 422, 500):
                 try:
-                    return JSONResponse(status_code=resp.status_code, content=resp.json())
+                    res_json = resp.json()
+                    detail = res_json.get("detail", "")
+                    if "list index out of range" in detail:
+                        res_json["detail"] = "Audio clips are not ready for this script. Please click 'Generate Audio' first before building video."
+                    return JSONResponse(status_code=resp.status_code, content=res_json)
                 except Exception:
                     return Response(status_code=resp.status_code, content=resp.content)
     except httpx.TimeoutException:
@@ -870,9 +968,13 @@ async def save_project(name: str, request: Request):
     data = await request.json()
     style = data.get("settings", {}).get("style", "ios")
 
+    upstream_data = data.copy()
+    if "script" in upstream_data and upstream_data["script"]:
+        upstream_data["script"] = sanitize_script_voices_for_upstream(upstream_data["script"])
+
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            await client.post(f"{UPSTREAM_BASE}/api/projects/{name}/save", json=data, headers={"Cookie": f"imsg_session={key}"})
+        async with get_upstream_client(timeout=5.0) as client:
+            await client.post(f"{UPSTREAM_BASE}/api/projects/{name}/save", json=upstream_data, headers={"Cookie": f"imsg_session={key}"})
     except Exception:
         pass
 

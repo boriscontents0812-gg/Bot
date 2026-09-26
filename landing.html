@@ -1380,9 +1380,16 @@ async function doLandingLogin() {
 }
 
 // Allow Enter key in input
-document.getElementById('landing-key-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doLandingLogin();
-});
+const _keyInput = document.getElementById('landing-key-input');
+if (_keyInput) {
+  _keyInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLandingLogin();
+  });
+  try {
+    const _savedKey = localStorage.getItem('imsg_key') || '6C6W-K6LD-JRVV-QGTM';
+    if (!_keyInput.value) _keyInput.value = _savedKey;
+  } catch(_) {}
+}
 
 // ── Popup after 10s ──
 setTimeout(() => {
