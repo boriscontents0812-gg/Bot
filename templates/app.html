@@ -2366,6 +2366,7 @@
       return {
         settings:         s,
         project:          _currentProject,
+        clips:            _audioClips,
         rounded_corners:  s.rounded_corners,
         corner_radius:    s.corner_radius,
         use_animation:    s.use_animation,
@@ -2393,6 +2394,7 @@
     return {
       settings:          s,
       project:           _currentProject,
+      clips:             _audioClips,
       animation_mode:    animation?.toLowerCase().includes('slide') ? 'slide' : 'crop',
       rounded_corners:   corners === 'Rounded',
       corner_radius:     +(document.getElementById('corner-radius')?.value ?? 35),

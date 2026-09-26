@@ -353,6 +353,14 @@ async def generate_audio(request: Request):
                 up_res = resp.json()
                 if isinstance(up_res, dict):
                     up_res["credits_used"] = 0
+                    user_audio_dir = os.path.join(DATA_DIR, "audio", key)
+                    os.makedirs(user_audio_dir, exist_ok=True)
+                    if "clips" in up_res:
+                        try:
+                            with open(os.path.join(user_audio_dir, "clips.json"), "w", encoding="utf-8") as cf:
+                                json.dump(up_res["clips"], cf)
+                        except Exception:
+                            pass
                 # Pre-cache full audio for instant client playback
                 try:
                     full_resp = await client.get(
@@ -461,6 +469,12 @@ async def generate_audio(request: Request):
         concat_wav_files(wav_paths, full_audio_path)
     except Exception as ce:
         print("Notice: could not concat audio files:", ce)
+
+    try:
+        with open(os.path.join(user_audio_dir, "clips.json"), "w", encoding="utf-8") as cf:
+            json.dump(clips, cf)
+    except Exception:
+        pass
 
     # Unlimited credits: keep credits at 999999999 and credits_used at 0
     try:
@@ -610,7 +624,47 @@ async def generate_video(request: Request):
     key = require_auth(request)
     payload = await request.json()
 
-    # Sanitize script voices for upstream to prevent TTS/character lookup failures
+    user_audio_dir = os.path.join(DATA_DIR, "audio", key)
+    full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
+    # 1. Gather clips metadata
+    clips = payload.get("clips") or []
+    if not clips:
+        clips_json_path = os.path.join(user_audio_dir, "clips.json")
+        if os.path.exists(clips_json_path):
+            try:
+                with open(clips_json_path, "r", encoding="utf-8") as cf:
+                    clips = json.load(cf)
+            except Exception:
+                pass
+
+    proj_name = payload.get("project")
+    if not clips and proj_name:
+        try:
+            with get_db() as conn:
+                p_row = conn.execute("SELECT data FROM projects WHERE UPPER(key_code) = ? AND name = ?", (key.upper(), proj_name)).fetchone()
+                if p_row:
+                    p_data = json.loads(p_row["data"])
+                    clips = p_data.get("clip_metadata", [])
+        except Exception:
+            pass
+
+    # 2. On self-hosted / local: run autonomous standalone engine (Option 2)
+    if not is_serverless:
+        try:
+            res = await generate_video_task(key, payload, clips, full_audio_path)
+            with get_db() as conn:
+                conn.execute('''
+                    INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (res["token"], key, f"{res['token']}.mp4", res["filepath"], res["duration_s"], time.time()))
+                conn.commit()
+            return res
+        except Exception as le:
+            print(f"Notice: Local video generator fallback to upstream: {le}")
+
+    # 3. Upstream generation (for serverless or fallback)
     upstream_payload = payload.copy()
     if "script" in upstream_payload and upstream_payload["script"]:
         upstream_payload["script"] = sanitize_script_voices_for_upstream(upstream_payload["script"])
@@ -618,9 +672,7 @@ async def generate_video(request: Request):
         upstream_payload["settings"] = upstream_payload["settings"].copy()
         upstream_payload["settings"]["script"] = sanitize_script_voices_for_upstream(upstream_payload["settings"]["script"])
 
-    # 1. Upstream video generation
     try:
-        # Keep timeout at 45.0s to ensure we never hit Vercel's 60s Serverless limit
         async with get_upstream_client(timeout=45.0) as client:
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_video",
@@ -651,7 +703,6 @@ async def generate_video(request: Request):
                 except Exception:
                     return Response(status_code=resp.status_code, content=resp.content)
     except httpx.TimeoutException:
-        # Video is taking > 45s to encode upstream. Return 202 so client polls /api/last_video seamlessly!
         return JSONResponse(status_code=202, content={
             "ok": True,
             "status": "rendering",
@@ -660,50 +711,40 @@ async def generate_video(request: Request):
     except Exception as e:
         print(f"Notice: Upstream video error: {e}")
 
-    # On Vercel / serverless: NEVER run local FFmpeg because it will exceed 60s
-    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-        return JSONResponse(status_code=202, content={
-            "ok": True,
-            "status": "rendering",
-            "detail": "Video rendering in progress. Polling for completion..."
-        })
-
-    # Local fallback for self-hosted / non-serverless
-    user_audio_dir = os.path.join(DATA_DIR, "audio", key)
-    full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
-    
-    clips = []
-    proj_name = payload.get("project")
-    if proj_name:
+    # Fallback to local if upstream failed on local machine
+    if not is_serverless:
         try:
+            res = await generate_video_task(key, payload, clips, full_audio_path)
             with get_db() as conn:
-                p_row = conn.execute("SELECT data FROM projects WHERE UPPER(key_code) = ? AND name = ?", (key.upper(), proj_name)).fetchone()
-                if p_row:
-                    p_data = json.loads(p_row["data"])
-                    clips = p_data.get("clip_metadata", [])
-        except Exception:
-            pass
+                conn.execute('''
+                    INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (res["token"], key, f"{res['token']}.mp4", res["filepath"], res["duration_s"], time.time()))
+                conn.commit()
+            return res
+        except Exception as e:
+            print(f"Local video error / fallback: {e}")
 
-    try:
-        res = await generate_video_task(key, payload, clips, full_audio_path)
-        with get_db() as conn:
-            conn.execute('''
-                INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (res["token"], key, f"{res['token']}.mp4", res["filepath"], res["duration_s"], time.time()))
-            conn.commit()
-        return res
-    except Exception as e:
-        print(f"Local video error / fallback: {e}")
-        return JSONResponse(status_code=202, content={
-            "ok": True,
-            "status": "rendering",
-            "detail": "Video rendering in progress. Polling for completion..."
-        })
+    return JSONResponse(status_code=202, content={
+        "ok": True,
+        "status": "rendering",
+        "detail": "Video rendering in progress. Polling for completion..."
+    })
 
 @app.get("/api/last_video")
 async def get_last_video(request: Request):
     key = require_auth(request)
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
+    if not is_serverless:
+        with get_db() as conn:
+            row = conn.execute("SELECT * FROM videos WHERE key_code = ? ORDER BY created_at DESC LIMIT 1", (key,)).fetchone()
+            if row:
+                return {
+                    "token": row["token"],
+                    "download_url": f"/download/{row['token']}",
+                    "duration_s": row["duration_s"]
+                }
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get(f"{UPSTREAM_BASE}/api/last_video", headers={"Cookie": f"imsg_session={key}"})
