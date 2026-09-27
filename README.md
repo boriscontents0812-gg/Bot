@@ -6,10 +6,16 @@ A complete, high-fidelity recreation of [botyk.app](https://botyk.app/) — the 
 
 ## ⚡ Quick Start
 
-Double-click `run.bat` or run:
+Run via npm or double-click `run.bat`:
 
 ```bash
-.venv\Scripts\uvicorn.exe server:app --host 127.0.0.1 --port 8000 --reload
+npm run dev
+```
+
+Or run directly via python / uvicorn:
+
+```bash
+.venv\Scripts\python.exe run_server.py --reload
 ```
 
 Then navigate to: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
