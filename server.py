@@ -27,7 +27,7 @@ from config import (
 )
 from db import get_db, init_db
 from renderer import render_preview_image, parse_script
-from audio_generator import synthesize_clip, concat_wav_files
+from audio_generator import synthesize_clip, concat_wav_files, generate_beep_wav, get_available_voices
 from video_generator import generate_video_task, get_job_progress, VIDEOS_DIR
 
 init_db()
@@ -410,113 +410,49 @@ def get_audio_progress(request: Request):
     key = get_current_user_key(request) or "default"
     return audio_progress.get(key, {})
 
+@app.get("/api/eleven_voices")
+async def get_eleven_voices_api(request: Request):
+    voices = await get_available_voices(ELEVEN_API_KEY)
+    return {"ok": True, "voices": voices}
+
 @app.post("/api/generate_audio")
 async def generate_audio(request: Request):
     key = require_auth(request)
     data = await request.json()
     script = data.get("script", "")
+    settings = data.get("settings", {}) if isinstance(data.get("settings"), dict) else {}
+    voice_map = data.get("voice_map") or settings.get("voice_map") or {}
 
-    # 1. Sync ElevenLabs API key to upstream if configured
-    try:
-        with get_db() as conn:
-            u_row = conn.execute("SELECT eleven_key FROM access_keys WHERE UPPER(code) = ?", (key.upper(),)).fetchone()
-            e_key = (u_row["eleven_key"] if u_row and u_row["eleven_key"] else "") or ELEVEN_API_KEY
-            if e_key:
-                async with get_upstream_client(timeout=4.0) as client:
-                    await client.post(f"{UPSTREAM_BASE}/api/eleven_key", json={"key": e_key}, headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
-                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles", json={"name": "active", "key": e_key}, headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
-                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles/active/activate", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
-    except Exception:
-        pass
-
-    # 2. Upstream audio generation with sanitized voice names
-    upstream_data = data.copy()
-    upstream_data["script"] = sanitize_script_voices_for_upstream(script)
-
-    try:
-        async with get_upstream_client(timeout=45.0) as client:
-            resp = await client.post(
-                f"{UPSTREAM_BASE}/api/generate_audio",
-                json=upstream_data,
-                headers={"Content-Type": "application/json", "Cookie": f"{SESSION_COOKIE_NAME}={key}"}
-            )
-            if resp.status_code == 200:
-                up_res = resp.json()
-                if isinstance(up_res, dict):
-                    up_res["credits_used"] = 0
-                    user_audio_dir = os.path.join(DATA_DIR, "audio", key)
-                    os.makedirs(user_audio_dir, exist_ok=True)
-                    if "clips" in up_res:
-                        try:
-                            with open(os.path.join(user_audio_dir, "clips.json"), "w", encoding="utf-8") as cf:
-                                json.dump(up_res["clips"], cf)
-                        except Exception:
-                            pass
-                # Pre-cache full audio for instant client playback
-                try:
-                    full_resp = await client.get(
-                        f"{UPSTREAM_BASE}/api/audio_full",
-                        headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"}
-                    )
-                    if full_resp.status_code == 200:
-                        user_audio_dir = os.path.join(DATA_DIR, "audio", key)
-                        os.makedirs(user_audio_dir, exist_ok=True)
-                        with open(os.path.join(user_audio_dir, "audio_full.wav"), "wb") as f:
-                            f.write(full_resp.content)
-                except Exception:
-                    pass
-                return up_res
-            elif resp.status_code in (400, 422):
-                try:
-                    return JSONResponse(status_code=resp.status_code, content=resp.json())
-                except Exception:
-                    pass
-            else:
-                print(f"Notice: Upstream audio returned {resp.status_code}, falling back to local synthesis")
-    except httpx.TimeoutException:
-        print("Notice: Upstream audio timed out at 45s, attempting local generation")
-    except Exception as e:
-        print(f"Notice: Upstream audio fallback active: {e}")
-
-    # 2. Local generation
     try:
         with get_db() as conn:
             user_row = conn.execute("SELECT * FROM access_keys WHERE UPPER(code) = ?", (key.upper(),)).fetchone()
             user = dict(user_row) if user_row else {}
     except Exception:
         user = {}
-    
-    eleven_key = (user.get("eleven_key") or "").strip() or ELEVEN_API_KEY
-    voice_model = user.get("voice_model") or "eleven_multilingual_v2"
-    voice_stability = user.get("voice_stability") or 0.25
-    voice_similarity = user.get("voice_similarity") or 0.70
-    voice_audio_speed = user.get("voice_audio_speed") or 1.15
+
+    eleven_key = ELEVEN_API_KEY or (user.get("eleven_key") or "").strip()
+    voice_model = settings.get("voice_model") or user.get("voice_model") or "eleven_multilingual_v2"
+    voice_stability = float(settings.get("voice_stability") or user.get("voice_stability") or 0.25)
+    voice_similarity = float(settings.get("voice_similarity") or user.get("voice_similarity") or 0.70)
+    voice_audio_speed = float(settings.get("voice_audio_speed") or user.get("voice_audio_speed") or 1.15)
 
     _, messages, _ = parse_script(script)
     if not messages:
         raise HTTPException(status_code=400, detail="Script is empty")
 
-    clips = []
-    total_ms = 0
-    wav_paths = []
-    
     user_audio_dir = os.path.join(DATA_DIR, "audio", key)
     try:
         os.makedirs(user_audio_dir, exist_ok=True)
     except Exception:
         pass
 
-    audio_progress[key] = {"step": 0, "total": len(messages), "label": "Generating audio in parallel..."}
+    audio_progress[key] = {"step": 0, "total": len(messages), "label": f"Generating audio for {len(messages)} messages..."}
 
     async def process_msg(idx, msg):
         clip_path = os.path.join(user_audio_dir, f"clip_{idx}.wav")
         if msg.get("is_img"):
             dur = 300
-            from audio_generator import generate_beep_wav
-            try:
-                generate_beep_wav(clip_path, dur, freq=100.0)
-            except Exception:
-                pass
+            generate_beep_wav(clip_path, dur, freq=100.0)
             return idx, {
                 "duration_ms": dur,
                 "text": msg["text"],
@@ -525,27 +461,38 @@ async def generate_audio(request: Request):
                 "side": msg["side"]
             }, clip_path, dur
 
+        char_name = str(msg.get("name", "")).strip()
+        # Find voice from voice_map (exact, lower, or side)
+        chosen_voice = (
+            voice_map.get(char_name) or
+            voice_map.get(char_name.lower()) or
+            voice_map.get(str(msg.get("side"))) or
+            char_name
+        )
+
         raw_bytes, used_real, dur_ms = await synthesize_clip(
             msg["text"],
-            msg["name"],
-            eleven_key,
+            chosen_voice,
+            eleven_key=eleven_key,
             model_id=voice_model,
             stability=voice_stability,
             similarity=voice_similarity,
             speed=voice_audio_speed,
-            side=msg.get("side", 1)
+            side=msg.get("side", 1),
+            output_wav_path=clip_path
         )
-        try:
-            with open(clip_path, "wb") as f:
-                f.write(raw_bytes)
-        except Exception as we:
-            print("Notice: could not save clip:", we)
+
+        audio_progress[key] = {
+            "step": idx + 1,
+            "total": len(messages),
+            "label": f"Generated message {idx + 1} of {len(messages)}"
+        }
 
         return idx, {
             "duration_ms": dur_ms,
             "text": msg["text"],
             "audio_text": msg["text"],
-            "voice": msg["name"],
+            "voice": chosen_voice,
             "side": msg["side"]
         }, clip_path, dur_ms
 
@@ -553,13 +500,9 @@ async def generate_audio(request: Request):
     results.sort(key=lambda x: x[0])
     clips = [r[1] for r in results]
     wav_paths = [r[2] for r in results]
-    total_ms = sum(r[3] for r in results)
 
     full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
-    try:
-        concat_wav_files(wav_paths, full_audio_path)
-    except Exception as ce:
-        print("Notice: could not concat audio files:", ce)
+    total_ms = concat_wav_files(wav_paths, full_audio_path, pause_ms=250)
 
     try:
         with open(os.path.join(user_audio_dir, "clips.json"), "w", encoding="utf-8") as cf:
@@ -567,7 +510,6 @@ async def generate_audio(request: Request):
     except Exception:
         pass
 
-    # Unlimited credits: keep credits at 999999999 and credits_used at 0
     try:
         with get_db() as conn:
             conn.execute("UPDATE access_keys SET credits_remaining = 999999999 WHERE UPPER(code) = ?", (key.upper(),))
@@ -670,23 +612,13 @@ async def serve_clip(index: int, request: Request):
 @app.get("/api/audio_full")
 async def serve_full_audio(request: Request):
     key = require_auth(request)
-    full_path = os.path.join(DATA_DIR, "audio", key, "audio_full.wav")
-    if os.path.exists(full_path):
-        return FileResponse(full_path, media_type="audio/wav")
-    try:
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/api/audio_full", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
-            if resp.status_code == 200:
-                try:
-                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                    with open(full_path, "wb") as f:
-                        f.write(resp.content)
-                except Exception:
-                    pass
-                return Response(content=resp.content, media_type="audio/wav")
-    except Exception:
-        pass
-    raise HTTPException(status_code=404, detail="Audio not found")
+    wav_path = os.path.join(DATA_DIR, "audio", key, "audio_full.wav")
+    if os.path.exists(wav_path):
+        return FileResponse(wav_path, media_type="audio/wav")
+    mp3_path = os.path.join(DATA_DIR, "audio", key, "audio_full.mp3")
+    if os.path.exists(mp3_path):
+        return FileResponse(mp3_path, media_type="audio/mpeg")
+    raise HTTPException(status_code=404, detail="Audio not generated yet")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Video Pipeline

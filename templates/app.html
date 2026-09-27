@@ -567,6 +567,38 @@
   </div>
 </div>
 
+<!-- Voice Assignment Modal -->
+<div id="voice-assign-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:26px 24px;max-width:480px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--primary-fg)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:var(--foreground)">Assign Character Voices</div>
+          <div style="font-size:12px;color:var(--muted-fg)">Select who speaks which voice in your script</div>
+        </div>
+      </div>
+      <button onclick="closeVoiceModal()" style="background:none;border:none;color:var(--muted-fg);cursor:pointer;padding:4px;border-radius:6px" title="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div id="modal-voice-list" style="display:flex;flex-direction:column;gap:12px;max-height:340px;overflow-y:auto;padding-right:4px">
+      <!-- Dynamically filled with character voice dropdowns -->
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-primary" id="btn-modal-confirm-voice" onclick="confirmVoiceModalAndGenerate()" style="flex:1;height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,3 19,12 5,21"/></svg>
+        <span>Generate Full Audio</span>
+      </button>
+      <button class="btn btn-secondary" onclick="closeVoiceModal()" style="height:44px;padding:0 18px;font-weight:500">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- Loading overlay -->
 <div id="loading-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);align-items:center;justify-content:center">
   <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px 40px;display:flex;flex-direction:column;align-items:center;gap:16px;min-width:280px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
@@ -695,53 +727,6 @@
         </div>
       </div>
 
-      <!-- ElevenLabs card -->
-      <div class="app-card" style="overflow:hidden">
-        <button onclick="toggleEl()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:transparent;border:none;cursor:pointer;font-family:var(--font-sans)">
-          <span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--foreground)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            ElevenLabs
-          </span>
-          <svg id="el-chev" class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div id="el-content" style="padding:0 20px 20px;display:none;flex-direction:column;gap:16px;border-top:1px solid var(--border);padding-top:16px">
-          <div class="field-group">
-            <div class="label">Active profile</div>
-            <div class="select-wrap">
-              <select class="field" id="el-profile-select" onchange="onProfileSelect(this.value)">
-                <option value="">— none —</option>
-              </select>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-          </div>
-          <div class="field-group">
-            <div class="label">API Key</div>
-            <input type="password" id="el-api-key" class="field" placeholder="Paste your ElevenLabs key…" style="font-family:var(--font-mono);letter-spacing:.1em" />
-          </div>
-          <div style="border-radius:12px;background:rgba(32, 31, 30, 0.6);padding:12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:8px;height:8px;border-radius:50%;background:var(--success);flex-shrink:0" id="el-status-dot"></div>
-              <div id="el-char-count" style="font-size:12px;color:var(--muted-fg)">Enter API key to check quota</div>
-            </div>
-            <button class="btn btn-xs btn-del" style="width:auto;padding:0 10px;flex-shrink:0" onclick="fetchQuota()">Check</button>
-          </div>
-          <div class="divider"></div>
-          <div class="field-group">
-            <div class="label">New profile name</div>
-            <input type="text" class="field" id="el-new-profile" placeholder="e.g. Main account" />
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <button class="btn btn-sm btn-save" onclick="saveElevenProfile()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              Save profile
-            </button>
-            <button class="btn btn-sm btn-del" onclick="deleteElevenProfile()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
 
       <!-- Script card -->
       <div class="app-card script-card" style="padding:20px;flex:1;display:flex;flex-direction:column;gap:12px">
@@ -833,37 +818,24 @@
             </div>
           </div>
           <div class="divider"></div>
-          <div class="nav-arrows">
-            <button class="nav-btn" onclick="navClip(-1)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <button class="nav-btn nav-center" id="clip-label" style="font-size:14px;font-weight:500">— / —</button>
-            <button class="nav-btn" onclick="navClip(1)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-          <div class="clip-card">
-            <div class="clip-meta" id="clip-meta">No audio generated yet</div>
-            <audio id="clip-player" preload="auto"></audio>
-            <div class="custom-player" id="custom-clip-player">
-              <div class="custom-player-row">
-                <button class="cp-btn" id="cc-playpause" onclick="ccTogglePlay()" title="Play / Pause">
-                  <svg id="cc-play-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-                  <svg id="cc-pause-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                </button>
-                <input type="range" class="cp-seek" id="cc-seek" min="0" max="100" step="0.1" value="0" oninput="ccSeek(this)">
-                <span class="cp-time" id="cc-time">0:00 / 0:00</span>
-              </div>
+          <!-- ── Character Voice Assignments ── -->
+          <div class="field-group" style="margin-top:4px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div class="label" style="margin-bottom:0;font-weight:600">Script Character Voices</div>
+              <span style="font-size:11px;color:var(--muted-fg)">Auto-saved for next time</span>
+            </div>
+            <div id="character-voice-list" style="display:flex;flex-direction:column;gap:10px">
+              <div style="font-size:12px;color:var(--muted-fg);text-align:center;padding:12px 0">Loading characters from script…</div>
             </div>
           </div>
-          <div class="field-group">
-            <div class="label">TTS text (editable)</div>
-            <textarea id="clip-text" class="field" rows="2" style="resize:none;min-height:unset">Generate audio first to review clips here.</textarea>
+
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <button class="btn btn-primary" id="btn-audio-tab-gen" onclick="doGenerateAudio()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              <span>Generate Full Voice Audio</span>
+            </button>
+            <div id="audio-gen-status" style="font-size:12px;color:var(--muted-fg);text-align:center;min-height:16px"></div>
           </div>
-          <button id="btn-regen-clip" class="btn btn-secondary btn-sm" onclick="doRegenerateClip()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            Regenerate this line
-          </button>
         </div>
 
         <!-- ── PICS tab ── -->
@@ -1165,27 +1137,13 @@
 
       <!-- Generate actions -->
       <div class="app-card" style="padding:12px;display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-primary" id="btn-gen-audio" onclick="showConfirm('confirm-audio')">
+        <button class="btn btn-primary" id="btn-gen-audio" onclick="openVoiceAssignmentModal()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          Generate Audio
+          <span>Generate Full Audio</span>
         </button>
-        <div id="confirm-audio" class="confirm-row" style="display:none">
-          <span class="confirm-label">Generate audio for all lines?</span>
-          <button class="btn btn-sm btn-primary" onclick="hideConfirm('confirm-audio');doGenerateAudio()">Confirm</button>
-          <button class="btn btn-sm btn-secondary" onclick="hideConfirm('confirm-audio')">Cancel</button>
-        </div>
-        <button class="btn btn-secondary" style="height:44px;font-size:14px;font-weight:500" id="btn-update-audio" onclick="showConfirm('confirm-update')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Update (new lines only)
-        </button>
-        <div id="confirm-update" class="confirm-row" style="display:none">
-          <span class="confirm-label">Regenerate new lines + update visual?</span>
-          <button class="btn btn-sm btn-primary" onclick="hideConfirm('confirm-update');doUpdateAudio()">Confirm</button>
-          <button class="btn btn-sm btn-secondary" onclick="hideConfirm('confirm-update')">Cancel</button>
-        </div>
         <button class="btn btn-primary" id="btn-action-download-pics" onclick="doDownloadPics()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Pics (ZIP)
+          <span>Download Pics (ZIP)</span>
         </button>
       </div>
 
@@ -1355,27 +1313,13 @@
 
       <!-- WA Generate actions -->
       <div class="app-card" style="padding:12px;display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-primary" id="wa-btn-gen-audio" onclick="showConfirm('wa-confirm-audio')">
+        <button class="btn btn-primary" id="wa-btn-gen-audio" onclick="openVoiceAssignmentModal()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          Generate Audio
+          <span>Generate Full Audio</span>
         </button>
-        <div id="wa-confirm-audio" class="confirm-row" style="display:none">
-          <span class="confirm-label">Generate audio for all lines?</span>
-          <button class="btn btn-sm btn-primary" onclick="hideConfirm('wa-confirm-audio');doGenerateAudio()">Confirm</button>
-          <button class="btn btn-sm btn-secondary" onclick="hideConfirm('wa-confirm-audio')">Cancel</button>
-        </div>
-        <button class="btn btn-secondary" style="height:44px;font-size:14px;font-weight:500" id="wa-btn-update-audio" onclick="showConfirm('wa-confirm-update')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Update (new lines only)
-        </button>
-        <div id="wa-confirm-update" class="confirm-row" style="display:none">
-          <span class="confirm-label">Regenerate new lines + update visual?</span>
-          <button class="btn btn-sm btn-primary" onclick="hideConfirm('wa-confirm-update');doUpdateAudio()">Confirm</button>
-          <button class="btn btn-sm btn-secondary" onclick="hideConfirm('wa-confirm-update')">Cancel</button>
-        </div>
         <button class="btn btn-primary" id="wa-btn-action-download-pics" onclick="doDownloadPics()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Pics (ZIP)
+          <span>Download Pics (ZIP)</span>
         </button>
       </div>
 
@@ -1511,6 +1455,7 @@
 
   async function fetchQuota() {
     const el = document.getElementById('el-char-count');
+    if (!el) return;
     const dot = document.getElementById('el-status-dot');
     el.textContent = 'Checking…';
     try {
@@ -1848,6 +1793,7 @@
       list.appendChild(row);
     });
     updateScriptImages();
+    renderCharacterVoiceList('character-voice-list');
 
     refreshPreview();
   }
@@ -1990,6 +1936,7 @@
   // ── Custom clip player ────────────────────────────────────────────────────
   (function initClipPlayer() {
     const audio = document.getElementById('clip-player');
+    if (!audio) return;
     const seek  = document.getElementById('cc-seek');
     const time  = document.getElementById('cc-time');
     const playIcon  = document.getElementById('cc-play-icon');
@@ -2002,10 +1949,10 @@
     }
     function updateUI() {
       const cur = audio.currentTime || 0, dur = audio.duration || 0;
-      seek.value = dur ? (cur / dur) * 100 : 0;
-      time.textContent = fmtTime(cur) + ' / ' + fmtTime(dur);
-      playIcon.style.display  = audio.paused ? '' : 'none';
-      pauseIcon.style.display = audio.paused ? 'none' : '';
+      if (seek) seek.value = dur ? (cur / dur) * 100 : 0;
+      if (time) time.textContent = fmtTime(cur) + ' / ' + fmtTime(dur);
+      if (playIcon) playIcon.style.display  = audio.paused ? '' : 'none';
+      if (pauseIcon) pauseIcon.style.display = audio.paused ? 'none' : '';
     }
     audio.addEventListener('timeupdate', updateUI);
     audio.addEventListener('loadedmetadata', updateUI);
@@ -2016,13 +1963,13 @@
 
   function ccTogglePlay() {
     const audio = document.getElementById('clip-player');
-    if (!audio.src && !audio.currentSrc) return;
+    if (!audio || (!audio.src && !audio.currentSrc)) return;
     audio.paused ? audio.play() : audio.pause();
   }
 
   function ccSeek(input) {
     const audio = document.getElementById('clip-player');
-    if (audio.duration) audio.currentTime = (input.value / 100) * audio.duration;
+    if (audio && audio.duration) audio.currentTime = (input.value / 100) * audio.duration;
   }
 
   // ── Custom full-audio player ───────────────────────────────────────────────
@@ -2216,20 +2163,157 @@
     }
   }
 
-  // ── Audio generation ───────────────────────────────────────────────────────────
+  // ── Voice Mapping & Audio Generation ─────────────────────────────────────────
   let _audioClips = [];
-  let _videoDownloadUrl = null;
+  let _availableVoices = [];
+  let _voiceMap = {};
+
+  async function loadAvailableVoices() {
+    try {
+      const res = await fetch('/api/eleven_voices');
+      const data = await safeJson(res);
+      if (data && data.voices && data.voices.length) {
+        _availableVoices = data.voices;
+      }
+    } catch(e) {
+      console.warn('Could not load ElevenLabs voices:', e);
+    }
+    renderCharacterVoiceList('character-voice-list');
+  }
+
+  function getScriptCharacters() {
+    const text = document.getElementById('script-input')?.value || '';
+    const { messages } = parseScript(text);
+    const chars = [];
+    const seen = new Set();
+    for (const m of messages) {
+      const name = (m.name || '').trim();
+      if (name && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        chars.push({ name, side: m.side || 1 });
+      }
+    }
+    if (!chars.length) {
+      chars.push({ name: 'Sender (Side 1)', side: 1 });
+      chars.push({ name: 'Receiver (Side 2)', side: 2 });
+    }
+    return chars;
+  }
+
+  function getSavedVoice(charName, side) {
+    if (_voiceMap[charName]) return _voiceMap[charName];
+    const saved = localStorage.getItem('voice_pref_' + charName.toLowerCase());
+    if (saved) return saved;
+
+    const cLower = charName.toLowerCase();
+    const match = _availableVoices.find(v => {
+      const vName = v.name.toLowerCase();
+      return vName.includes(cLower) || cLower.includes(vName.split(' ')[0]);
+    });
+    if (match) return match.id;
+
+    if (side === 1 || side === '1') {
+      const female = _availableVoices.find(v => v.gender === 'female' || /sarah|natasha|rachel|alice/i.test(v.name));
+      return female ? female.id : 'EXAVITQu4vr4xnSDxMaL';
+    } else {
+      const male = _availableVoices.find(v => v.gender === 'male' || /adam|roger|charlie|george/i.test(v.name));
+      return male ? male.id : 'pNInz6obpgDQGcFmaJgB';
+    }
+  }
+
+  function renderCharacterVoiceList(containerId = 'character-voice-list') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const chars = getScriptCharacters();
+    if (!_availableVoices.length) {
+      container.innerHTML = `<div style="font-size:12px;color:var(--muted-fg);text-align:center;padding:12px 0">Loading voices from ElevenLabs…</div>`;
+      return;
+    }
+
+    container.innerHTML = '';
+    chars.forEach((c) => {
+      const activeVoiceId = getSavedVoice(c.name, c.side);
+      _voiceMap[c.name] = activeVoiceId;
+
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;flex-direction:column;gap:5px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px 12px';
+
+      const sideLabel = (c.side === 1 || c.side === '1') ? 'Left Bubble · Received' : 'Right Bubble · Sent';
+      const sideColor = (c.side === 1 || c.side === '1') ? 'var(--muted-fg)' : 'var(--primary)';
+
+      row.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:13px;font-weight:600;color:var(--foreground)">
+            What voice should <span style="color:var(--primary);text-decoration:underline">${esc(c.name)}</span> be?
+          </span>
+          <span style="font-size:10px;font-weight:500;color:${sideColor};background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:6px">${sideLabel}</span>
+        </div>
+        <div class="select-wrap" style="width:100%">
+          <select class="field voice-select" data-char="${esc(c.name)}" style="height:38px;font-size:13px" onchange="onCharacterVoiceChange('${esc(c.name)}', this.value)" onkeydown="if(event.key==='Enter') confirmVoiceModalAndGenerate()">
+            ${_availableVoices.map(v => {
+              const selected = (v.id === activeVoiceId) ? 'selected' : '';
+              const desc = v.gender ? ` (${v.gender}${v.accent ? ' · ' + v.accent : ''})` : '';
+              return `<option value="${v.id}" ${selected}>${v.name}${desc}</option>`;
+            }).join('')}
+          </select>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  function onCharacterVoiceChange(charName, voiceId) {
+    _voiceMap[charName] = voiceId;
+    localStorage.setItem('voice_pref_' + charName.toLowerCase(), voiceId);
+    document.querySelectorAll(`.voice-select[data-char="${charName}"]`).forEach(sel => {
+      if (sel.value !== voiceId) sel.value = voiceId;
+    });
+    saveSettings();
+  }
+
+  function getVoiceMap() {
+    document.querySelectorAll('.voice-select').forEach(sel => {
+      const c = sel.getAttribute('data-char');
+      if (c && sel.value) {
+        _voiceMap[c] = sel.value;
+      }
+    });
+    return _voiceMap;
+  }
+
+  function openVoiceAssignmentModal() {
+    renderCharacterVoiceList('modal-voice-list');
+    const modal = document.getElementById('voice-assign-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function closeVoiceModal() {
+    const modal = document.getElementById('voice-assign-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function confirmVoiceModalAndGenerate() {
+    closeVoiceModal();
+    doGenerateAudio();
+  }
 
   async function doGenerateAudio() {
     if (IS_DEMO) { showDemoModal(); return; }
     const script = document.getElementById('script-input').value.trim();
     if (!script) { setStatus('Script is empty.'); return; }
 
+    const voiceMap = getVoiceMap();
+
     const btn = document.getElementById(_currentStyle === 'whatsapp' ? 'wa-btn-gen-audio' : 'btn-gen-audio');
-    btn.disabled = true;
-    const orig = btn.innerHTML;
-    btn.textContent = 'Generating…';
-    setStatus('Generating audio — this may take a minute…');
+    const tabBtn = document.getElementById('btn-audio-tab-gen');
+    const statusEl = document.getElementById('audio-gen-status');
+
+    if (btn) btn.disabled = true;
+    if (tabBtn) tabBtn.disabled = true;
+    setStatus('Generating full audio transcript with assigned voices…');
+    if (statusEl) statusEl.textContent = 'Generating full audio with ElevenLabs…';
 
     let _progressPollInterval = null;
     try {
@@ -2238,7 +2322,11 @@
           const pr = await fetch('/api/audio_progress');
           if (pr.ok) {
             const pd = await pr.json();
-            if (pd.step) setStatus(`Generating audio — ${pd.step}/${pd.total}: ${pd.label}`);
+            if (pd.step) {
+              const msg = `Generating audio — ${pd.step}/${pd.total}: ${pd.label}`;
+              setStatus(msg);
+              if (statusEl) statusEl.textContent = msg;
+            }
           }
         } catch(_) {}
       }, 600);
@@ -2246,22 +2334,34 @@
       const res = await fetch('/api/generate_audio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script, settings: getSettings(), project: _currentProject }),
+        body: JSON.stringify({
+          script,
+          settings: getSettings(),
+          project: _currentProject,
+          voice_map: voiceMap
+        }),
       });
       const d = await safeJson(res);
-      if (!res.ok) { setStatus('Error: ' + (d.detail || 'Unknown error')); return; }
+      if (!res.ok) {
+        const errMsg = 'Error: ' + (d.detail || 'Failed to generate audio');
+        setStatus(errMsg);
+        if (statusEl) statusEl.textContent = errMsg;
+        return;
+      }
 
-      _audioClips = d.clips;
-      totalClips = d.clips.length;
-      currentClip = 0;
-      setStatus(`✅ ${d.clips.length} clips · ${(d.total_ms/1000).toFixed(1)}s · Unlimited credits`);
-      _updateRenderEstimate();
+      _audioClips = d.clips || [];
+      const durSec = ((d.total_ms || 0) / 1000).toFixed(1);
+      const succMsg = `✅ Generated full audio (${_audioClips.length} lines, ${durSec}s) · Unlimited credits`;
+      setStatus(succMsg);
+      if (statusEl) statusEl.textContent = succMsg;
 
-      const _pp1 = document.getElementById('preview-player');
-      _pp1.src = '/api/audio_full'; _pp1.load();
-      loadClip(0);
+      const pp = document.getElementById('preview-player');
+      if (pp) {
+        pp.src = '/api/audio_full?t=' + Date.now();
+        pp.load();
+        pp.play().catch(() => {});
+      }
 
-      // Switch to audio tab
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
       const audioBtn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.trim() === 'audio');
@@ -2272,125 +2372,13 @@
       await _autoSaveProject();
     } catch(e) {
       setStatus('Error: ' + e.message);
+      if (statusEl) statusEl.textContent = 'Error: ' + e.message;
     } finally {
       clearInterval(_progressPollInterval);
-      btn.disabled = false;
-      btn.innerHTML = orig;
+      if (btn) btn.disabled = false;
+      if (tabBtn) tabBtn.disabled = false;
     }
   }
-
-  // ── Update audio (new lines only) ─────────────────────────────────────────────
-  async function doUpdateAudio() {
-    if (IS_DEMO) { showDemoModal(); return; }
-    const script = document.getElementById('script-input').value.trim();
-    if (!script) { setStatus('Script is empty.'); return; }
-    if (!_audioClips.length) { setStatus('No existing audio — use Generate Audio first.'); return; }
-
-    const btn = document.getElementById(_currentStyle === 'whatsapp' ? 'wa-btn-update-audio' : 'btn-update-audio');
-    btn.disabled = true;
-    const orig = btn.innerHTML;
-    btn.textContent = 'Updating…';
-    setStatus('Updating audio — generating only new/changed lines…');
-
-    try {
-      const res = await fetch('/api/update_audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script, settings: getSettings(), project: _currentProject }),
-      });
-      const d = await safeJson(res);
-      if (!res.ok) { setStatus('Error: ' + (d.detail || 'Unknown error')); return; }
-
-      _audioClips = d.clips;
-      totalClips = d.clips.length;
-      currentClip = 0;
-      setStatus(`✅ Updated — ${d.new_clips} new, ${d.reused_clips} reused · Unlimited credits`);
-
-      const _pp2 = document.getElementById('preview-player');
-      _pp2.src = '/api/audio_full'; _pp2.load();
-      loadClip(0);
-
-      // Switch to audio tab
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-      const audioBtn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.trim() === 'audio');
-      if (audioBtn) audioBtn.classList.add('active');
-      document.getElementById('panel-audio').classList.remove('hidden');
-
-      loadMe();
-      await _autoSaveProject();
-    } catch(e) {
-      setStatus('Error: ' + e.message);
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = orig;
-    }
-  }
-
-  // ── Regenerate single clip ─────────────────────────────────────────────────────
-  async function doRegenerateClip() {
-    if (IS_DEMO) { showDemoModal(); return; }
-    if (!_audioClips.length) { setStatus('No audio generated yet.'); return; }
-
-    const text = document.getElementById('clip-text').value.trim();
-    const btn = document.getElementById('btn-regen-clip');
-    btn.disabled = true;
-    const orig = btn.innerHTML;
-    btn.textContent = 'Regenerating…';
-    setStatus(`Regenerating clip ${currentClip + 1}…`);
-
-    try {
-      const res = await fetch('/api/regenerate_clip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ index: currentClip, text, settings: getSettings() }),
-      });
-      const d = await safeJson(res);
-      if (!res.ok) { setStatus('Error: ' + (d.detail || 'Unknown error')); return; }
-
-      // Update local cache
-      _audioClips[currentClip] = {
-        ..._audioClips[currentClip],
-        duration_ms: d.duration_ms,
-        text: d.text,
-      };
-
-      setStatus(`✅ Clip ${currentClip + 1} regenerated · Unlimited credits`);
-
-      // Reload clip player + invalidate full preview src (rebuilds in background via executor)
-      loadClip(currentClip);
-      _autoSaveProject();
-      const _pp3 = document.getElementById('preview-player');
-      if (_pp3) { _pp3.src = '/api/audio_full?t=' + Date.now(); _pp3.load(); }
-      if (d.credits_used > 0) loadMe();
-    } catch(e) {
-      setStatus('Error: ' + e.message);
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = orig;
-    }
-  }
-
-  function loadClip(index, { autoPlay = true } = {}) {
-    if (!_audioClips.length) return;
-    currentClip = Math.max(0, Math.min(_audioClips.length - 1, index));
-    const clip = _audioClips[currentClip];
-    document.getElementById('clip-label').textContent = `${currentClip + 1} / ${_audioClips.length}`;
-    document.getElementById('clip-meta').textContent =
-      `${clip.voice}  ·  ${(clip.duration_ms/1000).toFixed(1)}s  ·  ${clip.side === '1' ? 'received' : 'sent'}`;
-    document.getElementById('clip-text').value = clip.text;
-    const player = document.getElementById('clip-player');
-    player.src = `/api/audio/${currentClip}?t=${Date.now()}`;
-    player.load();
-    if (autoPlay) player.play().catch(() => {});
-    document.getElementById('cc-seek').value = 0;
-    document.getElementById('cc-time').textContent = '0:00 / 0:00';
-    document.getElementById('cc-play-icon').style.display = '';
-    document.getElementById('cc-pause-icon').style.display = 'none';
-  }
-
-  // Override navClip
-  function navClip(dir) { loadClip(currentClip + dir); }
 
   // ── Video generation ───────────────────────────────────────────────────────────
   let _currentVideoToken = null;
@@ -3037,17 +3025,18 @@
     if (scriptEl) { scriptEl.value = ''; }
     // Clear audio
     _audioClips = []; totalClips = 0; currentClip = 0;
-    document.getElementById('clip-label').textContent = '— / —';
-    document.getElementById('clip-meta').textContent = 'No audio generated yet';
-    document.getElementById('clip-text').value = 'Generate audio first to review clips here.';
+    const cl = document.getElementById('clip-label'); if (cl) cl.textContent = '— / —';
+    const cm = document.getElementById('clip-meta'); if (cm) cm.textContent = 'No audio generated yet';
+    const ct = document.getElementById('clip-text'); if (ct) ct.value = 'Generate audio first to review clips here.';
     const player = document.getElementById('preview-player');
     if (player) player.removeAttribute('src');
     const clipPlayer = document.getElementById('clip-player');
     if (clipPlayer) clipPlayer.removeAttribute('src');
-    document.getElementById('cc-seek').value = 0;
-    document.getElementById('cc-time').textContent = '0:00 / 0:00';
-    document.getElementById('cc-play-icon').style.display = '';
-    document.getElementById('cc-pause-icon').style.display = 'none';
+    const cseek = document.getElementById('cc-seek'); if (cseek) cseek.value = 0;
+    const ctime = document.getElementById('cc-time'); if (ctime) ctime.textContent = '0:00 / 0:00';
+    const cpi = document.getElementById('cc-play-icon'); if (cpi) cpi.style.display = '';
+    const cpau = document.getElementById('cc-pause-icon'); if (cpau) cpau.style.display = 'none';
+    renderCharacterVoiceList();
     // Clear video
     _currentVideoToken = null; _currentVideoDuration = 0; _videoDownloadUrl = null;
     const dl = document.getElementById('btn-download-video');
@@ -3160,14 +3149,15 @@
     _pendingProject = '';
     // Clear audio and script since the user chose to discard
     _audioClips = []; totalClips = 0; currentClip = 0;
-    document.getElementById('clip-label').textContent = '— / —';
-    document.getElementById('clip-meta').textContent = 'No audio generated yet';
-    document.getElementById('clip-text').value = 'Generate audio first to review clips here.';
+    const cl = document.getElementById('clip-label'); if (cl) cl.textContent = '— / —';
+    const cm = document.getElementById('clip-meta'); if (cm) cm.textContent = 'No audio generated yet';
+    const ct = document.getElementById('clip-text'); if (ct) ct.value = 'Generate audio first to review clips here.';
     const _pp = document.getElementById('preview-player');
     if (_pp) _pp.removeAttribute('src');
     const _cp = document.getElementById('clip-player');
     if (_cp) _cp.removeAttribute('src');
     document.getElementById('script-input').value = '';
+    renderCharacterVoiceList();
     if (pending === '@@crear@@') {
       _showCreateProjectRow();
     } else if (pending) {
@@ -3382,12 +3372,12 @@
           setTimeout(resolve, 25000);
           _ppL.src = '/api/audio_full'; _ppL.load();
         });
-        loadClip(0, { autoPlay: false });
       } else {
         _audioClips = []; totalClips = 0; currentClip = 0;
-        document.getElementById('clip-label').textContent = '— / —';
-        document.getElementById('clip-text').value = 'Generate audio first to review clips here.';
+        const cl = document.getElementById('clip-label'); if (cl) cl.textContent = '— / —';
+        const ct = document.getElementById('clip-text'); if (ct) ct.value = 'Generate audio first to review clips here.';
       }
+      renderCharacterVoiceList();
 
       // Restore contact photo cache
       (d.contact_photo_names || []).forEach(n => _contactPhotoCache.set(n, Date.now()));
@@ -3483,7 +3473,7 @@ alex
   loadMe();
   loadContactPhotoCache().then(() => updatePreview());
   if (!IS_DEMO) {
-    loadElevenProfiles();
+    loadAvailableVoices();
     loadMusicList();
     loadGameplayList();
     loadProjectList();
