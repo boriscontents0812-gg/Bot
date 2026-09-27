@@ -670,7 +670,8 @@
         <div class="tabs">
           <button class="tab-btn active" onclick="setTab(this,'preview')">preview</button>
           <button class="tab-btn" onclick="setTab(this,'audio')">audio</button>
-          <button class="tab-btn" onclick="setTab(this,'video')">pics</button>
+          <button class="tab-btn" onclick="setTab(this,'pics')">pics</button>
+          <button class="tab-btn" onclick="setTab(this,'video')">video</button>
         </div>
 
         <!-- ── PREVIEW tab ── -->
@@ -767,16 +768,98 @@
         </div>
 
         <!-- ── PICS tab ── -->
-        <div id="panel-video" class="tab-panel hidden">
+        <div id="panel-pics" class="tab-panel hidden">
           <div class="video-wrap" id="video-wrap" style="padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.45"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <div style="font-size:14px;font-weight:600;color:var(--fg)">Export Conversation Pictures</div>
+            <div style="font-size:14px;font-weight:600;color:var(--foreground)">Export Conversation Pictures</div>
             <div style="opacity:.6;font-size:12px;max-width:280px;line-height:1.4">Download all generated pictures in order (1.jpg, 2.jpg, 3.jpg...) in a single ZIP file.</div>
           </div>
           <button class="btn btn-primary" id="btn-download-pics-tab" onclick="doDownloadPics()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download Pics (ZIP)
+            <span>Download Pics (ZIP)</span>
           </button>
+        </div>
+
+        <!-- ── VIDEO tab ── -->
+        <div id="panel-video" class="tab-panel hidden">
+
+          <!-- Lock In Controls -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted-fg);display:flex;align-items:center;gap:6px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Master Assets Lock
+              </span>
+              <button class="btn btn-xs btn-secondary" onclick="refreshVideoAssetsStatus()" style="width:auto;padding:0 8px;height:24px;font-size:11px" title="Refresh asset status">
+                ↻ Refresh
+              </button>
+            </div>
+
+            <!-- Lock in Audio Card -->
+            <div id="lockin-audio-box" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;transition:all .2s ease">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                <div id="lockin-audio-icon" style="width:30px;height:30px;border-radius:8px;background:rgba(255,64,136,0.12);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                </div>
+                <div style="display:flex;flex-direction:column;min-width:0">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:13px;font-weight:600;color:var(--foreground)">Lock In Audio</span>
+                    <span id="badge-lock-audio" style="display:none;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:#10b981;color:#fff">LOCKED</span>
+                  </div>
+                  <div id="lockin-audio-status" style="font-size:11px;color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Checking audio…</div>
+                </div>
+              </div>
+              <button id="btn-lock-audio" class="btn btn-sm" onclick="toggleLockAudio()" style="width:auto;padding:0 14px;height:32px;font-size:12px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--foreground);transition:all .2s ease">
+                <span id="lock-audio-label">Lock in</span>
+              </button>
+            </div>
+
+            <!-- Lock in Video (Pics) Card -->
+            <div id="lockin-video-box" style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;transition:all .2s ease">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                <div id="lockin-video-icon" style="width:30px;height:30px;border-radius:8px;background:rgba(16,185,129,0.12);display:flex;align-items:center;justify-content:center;color:#10b981;flex-shrink:0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </div>
+                <div style="display:flex;flex-direction:column;min-width:0">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:13px;font-weight:600;color:var(--foreground)">Lock In Video (Pics)</span>
+                    <span id="badge-lock-video" style="display:none;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:#10b981;color:#fff">LOCKED</span>
+                  </div>
+                  <div id="lockin-video-status" style="font-size:11px;color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Checking pictures…</div>
+                </div>
+              </div>
+              <button id="btn-lock-video" class="btn btn-sm" onclick="toggleLockVideo()" style="width:auto;padding:0 14px;height:32px;font-size:12px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--foreground);transition:all .2s ease">
+                <span id="lock-video-label">Lock in</span>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Video Preview Box -->
+          <div id="slideshow-video-container" style="min-height:280px;background:var(--surface);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;position:relative">
+            <div id="slideshow-empty-state" style="padding:32px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.45"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              <div style="font-size:14px;font-weight:600;color:var(--foreground)">Synced Slideshow Video</div>
+              <div style="font-size:12px;color:var(--muted-fg);max-width:300px;line-height:1.5">
+                Lock in your audio and pics above, then click <strong>Generate Video</strong> to combine them into an exact lip-synced presentation video.
+              </div>
+            </div>
+            <video id="slideshow-video-player" controls playsinline style="display:none;width:100%;max-height:460px;border-radius:12px;object-fit:contain"></video>
+          </div>
+
+          <!-- Video Action Controls -->
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary" id="btn-gen-slideshow-video" onclick="doGenerateSlideshowVideo()" style="height:46px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21"/></svg>
+              <span>Generate Video</span>
+            </button>
+            <button class="btn btn-secondary" id="btn-download-slideshow-video" disabled onclick="doDownloadSlideshowVideo()" style="height:42px;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Download Video (MP4)</span>
+            </button>
+            <div id="slideshow-video-status" style="font-size:12px;color:var(--muted-fg);text-align:center;min-height:16px"></div>
+          </div>
+
         </div>
 
       </div>
@@ -1073,6 +1156,10 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Download Pics (ZIP)</span>
         </button>
+        <button class="btn btn-primary" id="btn-action-goto-video" onclick="gotoVideoTab()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          <span>Create Synced Video</span>
+        </button>
       </div>
 
       </div><!-- END panel-ios -->
@@ -1248,6 +1335,10 @@
         <button class="btn btn-primary" id="wa-btn-action-download-pics" onclick="doDownloadPics()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Download Pics (ZIP)</span>
+        </button>
+        <button class="btn btn-primary" id="wa-btn-action-goto-video" onclick="gotoVideoTab()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          <span>Create Synced Video</span>
         </button>
       </div>
 
@@ -1716,7 +1807,11 @@
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-    document.getElementById('panel-' + t).classList.remove('hidden');
+    const panel = document.getElementById('panel-' + t);
+    if (panel) panel.classList.remove('hidden');
+    if (t === 'video') {
+      refreshVideoAssetsStatus();
+    }
   }
 
   // ── Page navigation ────────────────────────────────────────────────────────────
@@ -1782,6 +1877,7 @@
         statusEl.textContent = `✅ Downloaded ${totalPics} pics (1, 2, 3...) in ZIP and saved locally!`;
         setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 6000);
       }
+      refreshVideoAssetsStatus();
     } catch (err) {
       setBusy(false);
       setStatus('❌ Error downloading pics: ' + err.message);
@@ -2271,6 +2367,7 @@
       document.getElementById('panel-audio').classList.remove('hidden');
 
       loadMe();
+      refreshVideoAssetsStatus();
       await _autoSaveProject();
     } catch(e) {
       setStatus('Error: ' + e.message);
@@ -2282,6 +2379,210 @@
     }
   }
 
+  // ── Slideshow Video & Master Assets Lock-in ────────────────────────────────────
+  let _audioLocked = false;
+  let _videoLocked = false;
+  let _hasAudio = false;
+  let _hasPics = false;
+  let _currentSlideshowVideoUrl = null;
+
+  async function refreshVideoAssetsStatus() {
+    const aStatus = document.getElementById('lockin-audio-status');
+    const vStatus = document.getElementById('lockin-video-status');
+    try {
+      const projParam = encodeURIComponent(_currentProject || 'conversation');
+      const res = await fetch(`/api/video_assets_status?project=${projParam}`);
+      if (res.ok) {
+        const d = await res.json();
+        _hasAudio = !!d.has_audio;
+        if (aStatus) {
+          if (d.has_audio) {
+            aStatus.textContent = `${d.clips_count} audio clips · ${d.audio_duration_formatted} (Ready)`;
+            aStatus.style.color = 'var(--foreground)';
+          } else {
+            aStatus.textContent = 'Audio not generated yet';
+            aStatus.style.color = 'var(--muted-fg)';
+          }
+        }
+        if (vStatus) {
+          if (d.has_pics && d.pics_count > 0) {
+            _hasPics = true;
+            vStatus.textContent = `${d.pics_count} saved pics (1.jpg – ${d.pics_count}.jpg) ready on disk`;
+            vStatus.style.color = 'var(--foreground)';
+          } else {
+            _hasPics = totalPages > 0;
+            vStatus.textContent = `${totalPages || 1} screenshot page(s) ready in preview`;
+            vStatus.style.color = 'var(--muted-fg)';
+          }
+        }
+        return d;
+      }
+    } catch (_) {}
+  }
+
+  function toggleLockAudio() {
+    if (!_hasAudio) {
+      alert('Full voice audio is not generated yet. Please generate audio first in the Audio tab.');
+      return;
+    }
+    _audioLocked = !_audioLocked;
+    const box = document.getElementById('lockin-audio-box');
+    const btn = document.getElementById('btn-lock-audio');
+    const badge = document.getElementById('badge-lock-audio');
+    if (_audioLocked) {
+      if (box) { box.style.borderColor = '#10b981'; box.style.background = 'rgba(16,185,129,0.08)'; }
+      if (btn) { btn.innerHTML = '<span style="color:#10b981;font-weight:700">✓ Locked</span>'; btn.style.borderColor = '#10b981'; }
+      if (badge) badge.style.display = 'inline-block';
+    } else {
+      if (box) { box.style.borderColor = ''; box.style.background = ''; }
+      if (btn) { btn.innerHTML = '<span>Lock in</span>'; btn.style.borderColor = ''; }
+      if (badge) badge.style.display = 'none';
+    }
+  }
+
+  async function toggleLockVideo() {
+    const box = document.getElementById('lockin-video-box');
+    const btn = document.getElementById('btn-lock-video');
+    const badge = document.getElementById('badge-lock-video');
+    const vStatus = document.getElementById('lockin-video-status');
+
+    if (_videoLocked) {
+      _videoLocked = false;
+      if (box) { box.style.borderColor = ''; box.style.background = ''; }
+      if (btn) { btn.innerHTML = '<span>Lock in</span>'; btn.style.borderColor = ''; btn.disabled = false; }
+      if (badge) badge.style.display = 'none';
+      if (vStatus) {
+        vStatus.textContent = `${totalPages || 1} screenshot page(s) ready in preview (unlocked)`;
+        vStatus.style.color = 'var(--muted-fg)';
+      }
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;margin-right:4px"></span> Saving…`;
+    }
+    if (vStatus) vStatus.textContent = 'Exporting and saving screenshots to local disk…';
+
+    try {
+      const payload = getPreviewBody(0);
+      payload.script = document.getElementById('script-input')?.value || '';
+      payload.project = _currentProject || 'conversation';
+
+      const res = await fetch('/api/lock_and_export_pics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.detail || 'Failed to export screenshots');
+      }
+
+      _videoLocked = true;
+      _hasPics = true;
+      if (box) { box.style.borderColor = '#10b981'; box.style.background = 'rgba(16,185,129,0.08)'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span style="color:#10b981;font-weight:700">✓ Locked</span>'; btn.style.borderColor = '#10b981'; }
+      if (badge) badge.style.display = 'inline-block';
+      if (vStatus) {
+        vStatus.textContent = `✓ Locked: ${data.pics_count} screenshot(s) saved on disk (1.jpg – ${data.pics_count}.jpg)`;
+        vStatus.style.color = 'var(--foreground)';
+      }
+      setStatus(`✓ Locked ${data.pics_count} screenshots saved on disk`);
+    } catch (err) {
+      alert(`Could not export screenshots: ${err.message}`);
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span>Lock in</span>'; }
+      if (vStatus) vStatus.textContent = 'Export failed. Try again.';
+    }
+  }
+
+  async function doGenerateSlideshowVideo() {
+    const statusEl = document.getElementById('slideshow-video-status');
+    const btn = document.getElementById('btn-gen-slideshow-video');
+    const dlBtn = document.getElementById('btn-download-slideshow-video');
+    const player = document.getElementById('slideshow-video-player');
+    const emptyState = document.getElementById('slideshow-empty-state');
+
+    // Refresh and check audio status
+    const st = await refreshVideoAssetsStatus();
+    if (!st || !st.has_audio) {
+      alert('Full voice audio is not ready yet! Please go to the Audio tab and click "Generate Full Voice Audio" first.');
+      return;
+    }
+
+    if (!_audioLocked) toggleLockAudio();
+    if (!_videoLocked) {
+      await toggleLockVideo();
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = `<span style="display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;margin-right:6px"></span> Assembling Synced Video…`;
+    if (statusEl) statusEl.textContent = 'Combining high-res screenshots with ElevenLabs speech using FFmpeg…';
+
+    try {
+      const payload = getPreviewBody(0);
+      payload.script = document.getElementById('script-input')?.value || '';
+      payload.project = _currentProject || 'conversation';
+      payload.lock_audio = true;
+      payload.lock_video = true;
+      payload.notif_sound = false;
+
+      const res = await fetch('/api/generate_slideshow_video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.detail || 'Video generation failed');
+      }
+
+      _currentSlideshowVideoUrl = data.download_url;
+      if (player) {
+        player.src = data.download_url;
+        player.style.display = 'block';
+        player.load();
+      }
+      if (emptyState) emptyState.style.display = 'none';
+
+      if (dlBtn) {
+        dlBtn.disabled = false;
+        dlBtn.classList.remove('btn-secondary');
+        dlBtn.classList.add('btn-primary');
+      }
+
+      const mins = Math.floor((data.duration_s || 0) / 60);
+      const secs = Math.round((data.duration_s || 0) % 60);
+      const durStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+      if (statusEl) {
+        statusEl.textContent = `✅ Video ready! ${data.total_dms || 0} DMs across ${data.total_slides || totalPages} page(s) · ${durStr} duration · Synced with ElevenLabs`;
+      }
+      setStatus(`✅ Video ready! ${durStr} duration — ready to play & download`);
+      await _autoSaveProject();
+    } catch (err) {
+      if (statusEl) statusEl.textContent = '❌ Error: ' + err.message;
+      setStatus('❌ Video generation failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21"/></svg><span>Generate Video</span>`;
+    }
+  }
+
+  function doDownloadSlideshowVideo() {
+    if (_currentSlideshowVideoUrl) {
+      window.location.href = _currentSlideshowVideoUrl;
+    }
+  }
+
+  function gotoVideoTab() {
+    const videoBtn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.trim().toLowerCase() === 'video');
+    if (videoBtn) {
+      setTab(videoBtn, 'video');
+    }
+  }
+
   // ── Video generation ───────────────────────────────────────────────────────────
   let _currentVideoToken = null;
   let _currentVideoDuration = 0;
@@ -2289,9 +2590,11 @@
   function _switchToVideoTab() {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-    const videoBtn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.trim() === 'pics' || b.textContent.trim() === 'video');
+    const videoBtn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.trim().toLowerCase() === 'video');
     if (videoBtn) videoBtn.classList.add('active');
-    document.getElementById('panel-video').classList.remove('hidden');
+    const p = document.getElementById('panel-video');
+    if (p) p.classList.remove('hidden');
+    refreshVideoAssetsStatus();
   }
 
   function _enableDownload(url) {
@@ -3330,6 +3633,7 @@
   loadMusicList();
   loadGameplayList();
   loadProjectList();
+  refreshVideoAssetsStatus();
 </script>
 <script src="/assets/thought-line.js"></script>
 <script>

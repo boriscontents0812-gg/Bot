@@ -159,6 +159,65 @@ def test_admin_flow():
         assert "total_keys" in dash
         print(f"[PASS] 15. GET /admin/dashboard -> Total keys: {dash['total_keys']}, videos: {dash['total_videos']}")
 
+def test_video_endpoints():
+    req_status = urllib.request.Request(f"{BASE}/api/video_assets_status")
+    with opener.open(req_status) as resp:
+        assert resp.status == 200
+        status_data = json.loads(resp.read().decode('utf-8'))
+        assert status_data.get("ok") is True
+        assert "has_audio" in status_data
+        assert "has_pics" in status_data
+        print(f"[PASS] 16. GET /api/video_assets_status -> ok=True, has_audio={status_data['has_audio']}, clips_count={status_data.get('clips_count')}")
+
+    req_last = urllib.request.Request(f"{BASE}/api/last_video")
+    with opener.open(req_last) as resp:
+        assert resp.status == 200
+        last_data = json.loads(resp.read().decode('utf-8'))
+        assert "download_url" in last_data
+        print(f"[PASS] 17. GET /api/last_video -> token={last_data.get('token')}, duration={last_data.get('duration_s')}s")
+
+    # Test POST /api/lock_and_export_pics
+    body = {
+        "script": "Mystery Girl\n1: Natasha > Hello 🤫\n2: Shawn > Hey there!",
+        "project": "TestLockPics",
+        "style": "ios",
+        "theme": "light"
+    }
+    req_lock = urllib.request.Request(
+        f"{BASE}/api/lock_and_export_pics",
+        data=json.dumps(body).encode('utf-8'),
+        headers={"Content-Type": "application/json"}
+    )
+    with opener.open(req_lock) as resp:
+        assert resp.status == 200
+        lock_data = json.loads(resp.read().decode('utf-8'))
+        assert lock_data.get("ok") is True
+        assert lock_data.get("pics_count", 0) >= 1
+        assert "1.jpg" in lock_data.get("files", [])
+        print(f"[PASS] 18. POST /api/lock_and_export_pics -> Saved {lock_data['pics_count']} screenshot(s) to {lock_data['pics_dir']}")
+
+    # 19. Generate Progressive Animated Video
+    body_vid = {
+        "script": "Mystery Girl\n1: Natasha > Hello 🤫\n2: Shawn > Hey there!",
+        "project": "TestStory",
+        "style": "ios",
+        "theme": "light",
+        "msgs_per_page": 6,
+        "notif_sound": False
+    }
+    req_vid = urllib.request.Request(
+        f"{BASE}/api/generate_slideshow_video",
+        data=json.dumps(body_vid).encode('utf-8'),
+        headers={"Content-Type": "application/json"}
+    )
+    with opener.open(req_vid) as resp:
+        assert resp.status == 200
+        vid_data = json.loads(resp.read().decode('utf-8'))
+        assert vid_data.get("ok") is True
+        assert "token" in vid_data
+        assert os.path.exists(vid_data["filepath"])
+        print(f"[PASS] 19. POST /api/generate_slideshow_video -> Synced video {vid_data['token']} ({vid_data['duration_s']}s) created")
+
 def run_all():
     print("--- Running Verification Suite ---")
     test_unauthenticated_root()
@@ -170,7 +229,9 @@ def run_all():
     test_projects_crud()
     test_static_assets()
     test_admin_flow()
-    print("\nALL 15 VERIFICATION TESTS PASSED SUCCESSFULLY!")
+    test_video_endpoints()
+    print("\nALL 19 VERIFICATION TESTS PASSED SUCCESSFULLY!")
 
 if __name__ == "__main__":
     run_all()
+

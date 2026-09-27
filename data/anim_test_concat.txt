@@ -1,0 +1,7 @@
+file 'D:/Github/Bot/data/anim_test_1.jpg'
+duration 2.0
+file 'D:/Github/Bot/data/anim_test_2.jpg'
+duration 3.0
+file 'D:/Github/Bot/data/anim_test_3.jpg'
+duration 2.5
+file 'D:/Github/Bot/data/anim_test_3.jpg'

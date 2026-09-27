@@ -7,8 +7,11 @@ import math
 import shutil
 import wave
 import struct
+import re
+import asyncio
 
-from renderer import render_chat_frame, parse_script
+from PIL import Image
+from renderer import render_chat_frame, parse_script, render_preview_image, partition_messages_into_pages
 import config
 from config import BASE_DIR, DATA_DIR, VIDEOS_DIR, SFX_DIR
 
@@ -55,7 +58,7 @@ def has_audio_stream(filepath):
     except Exception:
         return False
 
-def prepare_mixed_audio(speech_audio_path, clips, temp_dir, notif_sound=True):
+def prepare_mixed_audio(speech_audio_path, clips, temp_dir, notif_sound=True, entrance_offsets_s=None):
     """
     Normalizes speech audio to 44100Hz 16-bit stereo PCM and overlays
     the authentic iOS pop sound (data/sfx/pop.wav) at every message entrance.
@@ -100,12 +103,15 @@ def prepare_mixed_audio(speech_audio_path, clips, temp_dir, notif_sound=True):
             p_samples = list(struct.unpack('<' + ('h' * (pw.getnframes() * 2)), p_frames))
 
         # Calculate message entrance timestamps
-        cum_ms = 0
-        pop_indices = []
-        for c in clips:
-            sample_offset = int((cum_ms / 1000.0) * 44100) * 2
-            pop_indices.append(sample_offset)
-            cum_ms += c.get('duration_ms', 1000)
+        if entrance_offsets_s is not None:
+            pop_indices = [int(round(off * 44100)) * 2 for off in entrance_offsets_s]
+        else:
+            cum_ms = 0
+            pop_indices = []
+            for c in clips:
+                sample_offset = int((cum_ms / 1000.0) * 44100) * 2
+                pop_indices.append(sample_offset)
+                cum_ms += c.get('duration_ms', 1000)
 
         # Mix pop samples
         for p_idx in pop_indices:
@@ -166,40 +172,101 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
                         'side': m['side']
                     })
 
-        total_duration_ms = sum(c.get('duration_ms', 1000) for c in clips[:len(messages)])
-        total_duration_s = max(2.0, total_duration_ms / 1000.0)
+        user_audio_dir = os.path.join(DATA_DIR, 'audio', key_code)
+        msgs_per_page = int(payload.get('msgs_per_page') or settings.get('msgs_per_page') or 5)
+        if msgs_per_page < 1:
+            msgs_per_page = 5
+
+        chat_y = payload.get('chat_y') or settings.get('chat_y') or 350
+        pages = partition_messages_into_pages(messages, msgs_per_page=msgs_per_page)
+        message_frame_info = {}
+        for p in pages:
+            p_raw_msgs = [m for _, m in p['messages']]
+            for k, (global_idx, msg) in enumerate(p['messages'], start=1):
+                message_frame_info[global_idx] = {
+                    'page_msgs': p_raw_msgs,
+                    'visible_count': k,
+                    'contact_name': p['contact_name'],
+                    'show_header': p['show_header'],
+                    'page_index': p['page_index']
+                }
+
+        gap_same_ms = int(settings.get('gap_same_ms') or 30)
+        gap_switch_ms = int(settings.get('gap_switch_ms') or 60)
+
+        frame_durations_s = []
+        message_start_offsets_s = []
+        cum_s = 0.0
+
+        for i in range(len(messages)):
+            message_start_offsets_s.append(cum_s)
+            clip_file = os.path.join(user_audio_dir, f"clip_{i}.wav")
+            clip_dur_s = 0.0
+            if os.path.exists(clip_file):
+                try:
+                    with wave.open(clip_file, "rb") as wf:
+                        clip_dur_s = wf.getnframes() / float(wf.getframerate())
+                except Exception:
+                    clip_dur_s = 0.0
+
+            if clip_dur_s <= 0.0:
+                clip_dur_s = (clips[i].get("duration_ms", 1000) / 1000.0) if (clips and i < len(clips)) else 1.0
+
+            if i < len(messages) - 1:
+                is_same = (
+                    messages[i].get("side") == messages[i + 1].get("side") or
+                    (messages[i].get("name") and messages[i].get("name") == messages[i + 1].get("name"))
+                )
+                p_ms = gap_same_ms if is_same else gap_switch_ms
+                pause_s = p_ms / 1000.0
+            else:
+                pause_s = 0.250
+
+            dur_s = clip_dur_s + pause_s
+            frame_durations_s.append(dur_s)
+            cum_s += dur_s
+
+        total_duration_s = max(1.0, sum(frame_durations_s))
 
         # 1. Render Progressive Video Frames
         set_job_progress(key_code, True, pct=20, msg="Rendering high-fidelity chat frames...")
         
         width, height = 1080, 1920
         badge_count = int(payload.get('badge_count', settings.get('badge_count', 0)))
-        corner_rad = int(payload.get('corner_radius', settings.get('corner_radius', 35)))
-        container_scale = float(payload.get('container_scale', settings.get('container_scale', 1.0)))
-        notif_sound = bool(payload.get('notif_sound', settings.get('notif_sound', True)))
+        corner_rad = int(payload.get('corner_radius') or settings.get('corner_radius') or 0)
+        container_scale = float(payload.get('container_scale') or settings.get('container_scale') or 1.0)
+        notif_sound = bool(payload.get('notif_sound', False))
 
         concat_lines = []
         for i in range(len(messages)):
             frame_filename = f'frame_{i:04d}.png'
             frame_path = os.path.join(temp_dir, frame_filename)
+            info = message_frame_info.get(i, {
+                'page_msgs': messages,
+                'visible_count': i + 1,
+                'contact_name': contact_name,
+                'show_header': True
+            })
             
             frame_img = render_chat_frame(
-                messages,
-                visible_count=i + 1,
-                contact_name=contact_name,
+                info['page_msgs'],
+                visible_count=info['visible_count'],
+                contact_name=info['contact_name'],
                 badge_count=badge_count,
                 style=style,
                 theme=theme,
                 width=width,
                 height=height,
-                chat_y_pct=None,
+                chat_y=chat_y,
                 container_scale=container_scale,
-                corner_radius_val=corner_rad
+                corner_radius_val=corner_rad,
+                container_shadow=False,
+                show_header=info['show_header']
             )
             frame_img.save(frame_path)
 
-            dur_s = clips[i].get('duration_ms', 1000) / 1000.0
-            concat_lines.append(f"file '{frame_filename}'\nduration {dur_s:.3f}")
+            dur_s = frame_durations_s[i]
+            concat_lines.append(f"file '{frame_filename}'\nduration {dur_s:.4f}")
 
             pct = 20 + int(30 * (i + 1) / len(messages))
             set_job_progress(key_code, True, pct=pct, msg=f"Rendered frame {i+1} of {len(messages)}...")
@@ -227,7 +294,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
 
         mixed_audio_path = None
         if actual_audio and os.path.exists(actual_audio):
-            mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound)
+            mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound, entrance_offsets_s=message_start_offsets_s)
 
         # 3. Locate Gameplay Video
         gameplay_file = payload.get('gameplay_file', '')
@@ -364,3 +431,226 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
         except Exception:
             pass
         raise e
+
+def get_sub_script_for_message(script_text, target_global_idx):
+    """
+    Extracts the script content up to target_global_idx (0-based), preserving
+    all previous contact headers, breaks, and messages intact.
+    """
+    lines = script_text.splitlines()
+    sub_lines = []
+    msg_idx = -1
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith('---'):
+            sub_lines.append(raw_line)
+            continue
+        is_msg = bool(re.match(r'^\[?[12]\]?[:\.\-\>]\s*(.*)$', line) or re.match(r'^(?:\[?([12])\]?[:\.\-\>]\s*)?img:\s*(.+)$', line, re.I))
+        if is_msg:
+            msg_idx += 1
+            sub_lines.append(raw_line)
+            if msg_idx == target_global_idx:
+                break
+        else:
+            sub_lines.append(raw_line)
+    return '\n'.join(sub_lines)
+
+async def generate_slideshow_video_task(key_code, payload, clips, audio_full_path, render_page_func=None):
+    """
+    Assembles a high-fidelity synchronized animated video where each DM is revealed
+    one by one as the dialogue is spoken by ElevenLabs.
+    - Uses exact web preview rendering with authentic Apple Color Emojis and dynamic card hugging.
+    - True iOS iMessage curved beak tails and styling: left grey (#e5e5ea) and right blue (#007aff).
+    - Perfect frame-accurate synchronization with audio clips and conversational pauses.
+    - Encoded to 1080x1920 Full HD MP4 with clean speech audio.
+    """
+    start_time = time.time()
+    set_job_progress(key_code, True, pct=5, msg="Preparing synced animated video...")
+
+    token = str(uuid.uuid4())
+    temp_dir = os.path.join(VIDEOS_DIR, f'temp_anim_{token}')
+    os.makedirs(temp_dir, exist_ok=True)
+
+    try:
+        settings = payload.get('settings', {}) if isinstance(payload.get('settings'), dict) else {}
+        script_text = payload.get('script') or settings.get('script', '')
+        contact_name, messages, contacts = parse_script(script_text)
+        if not messages:
+            raise ValueError("Script contains no messages to generate video.")
+
+        msgs_per_page = int(payload.get('msgs_per_page') or settings.get('msgs_per_page') or 5)
+        if msgs_per_page < 1:
+            msgs_per_page = 5
+
+        # 1. Partition messages into pages
+        pages = partition_messages_into_pages(messages, msgs_per_page=msgs_per_page)
+        msg_to_page = {}
+        for p in pages:
+            for _, (g_idx, _) in enumerate(p['messages']):
+                msg_to_page[g_idx] = p['page_index']
+
+        # 2. Calculate accurate frame durations synced to ElevenLabs audio
+        user_audio_dir = os.path.join(DATA_DIR, 'audio', key_code)
+        gap_same_ms = int(settings.get('gap_same_ms') or 30)
+        gap_switch_ms = int(settings.get('gap_switch_ms') or 60)
+
+        frame_durations_s = []
+        for i in range(len(messages)):
+            clip_file = os.path.join(user_audio_dir, f"clip_{i}.wav")
+            clip_dur_s = 0.0
+            if os.path.exists(clip_file):
+                try:
+                    with wave.open(clip_file, "rb") as wf:
+                        clip_dur_s = wf.getnframes() / float(wf.getframerate())
+                except Exception:
+                    clip_dur_s = 0.0
+
+            if clip_dur_s <= 0.0:
+                clip_dur_s = (clips[i].get("duration_ms", 1000) / 1000.0) if (clips and i < len(clips)) else 1.0
+
+            if i < len(messages) - 1:
+                is_same = (
+                    messages[i].get("side") == messages[i + 1].get("side") or
+                    (messages[i].get("name") and messages[i].get("name") == messages[i + 1].get("name"))
+                )
+                p_ms = gap_same_ms if is_same else gap_switch_ms
+                pause_s = p_ms / 1000.0
+            else:
+                pause_s = 0.250
+
+            dur_s = clip_dur_s + pause_s
+            frame_durations_s.append(dur_s)
+
+        # Total audio length alignment
+        total_audio_s = 0.0
+        if audio_full_path and os.path.exists(audio_full_path):
+            try:
+                with wave.open(audio_full_path, "rb") as wf:
+                    total_audio_s = wf.getnframes() / float(wf.getframerate())
+            except Exception:
+                pass
+
+        if total_audio_s > 0:
+            current_sum = sum(frame_durations_s)
+            if current_sum > 0:
+                diff = total_audio_s - current_sum
+                frame_durations_s[-1] = max(0.2, frame_durations_s[-1] + diff)
+            final_total_s = total_audio_s
+        else:
+            final_total_s = sum(frame_durations_s)
+
+        # 3. Render progressive frames using the web preview engine (Apple Color Emoji, authentic iMessage bubbles)
+        set_job_progress(key_code, True, pct=20, msg=f"Rendering progressive DM frames (0 of {len(messages)})...")
+        sem = asyncio.Semaphore(4)
+        rendered_frames = [None] * len(messages)
+        completed_count = 0
+
+        async def render_single_frame(i):
+            nonlocal completed_count
+            async with sem:
+                p_idx = msg_to_page.get(i, 0)
+                sub_script = get_sub_script_for_message(script_text, i)
+                body_i = payload.copy()
+                body_i['script'] = sub_script
+                body_i['page'] = p_idx
+                if render_page_func:
+                    img_bytes, _ = await render_page_func(body_i, p_idx, key_code)
+                else:
+                    img_bytes, _ = render_preview_image(body_i)
+
+                fname = f"frame_{i:04d}.jpg"
+                fpath = os.path.join(temp_dir, fname)
+                with open(fpath, "wb") as f:
+                    f.write(img_bytes)
+
+                rendered_frames[i] = fname
+                completed_count += 1
+                pct = 20 + int(45 * (completed_count / len(messages)))
+                set_job_progress(key_code, True, pct=pct, msg=f"Rendered DM frame {completed_count} of {len(messages)}...")
+
+        await asyncio.gather(*(render_single_frame(i) for i in range(len(messages))))
+
+        # 4. Build concat.txt
+        concat_lines = []
+        for i in range(len(messages)):
+            concat_lines.append(f"file '{rendered_frames[i]}'")
+            concat_lines.append(f"duration {frame_durations_s[i]:.4f}")
+        # Concat demuxer requirement: repeat final frame
+        concat_lines.append(f"file '{rendered_frames[-1]}'")
+
+        concat_path = os.path.join(temp_dir, 'concat.txt')
+        with open(concat_path, 'w', encoding='utf-8') as cf:
+            cf.write('\n'.join(concat_lines) + '\n')
+
+        # 5. Prepare Audio (pure voice speech track, no notification pop sound)
+        set_job_progress(key_code, True, pct=70, msg="Preparing speech audio...")
+        actual_audio = None
+        if audio_full_path and os.path.exists(audio_full_path):
+            actual_audio = audio_full_path
+        else:
+            cand = os.path.join(user_audio_dir, 'audio_full.wav')
+            if os.path.exists(cand):
+                actual_audio = cand
+
+        notif_sound = bool(payload.get('notif_sound', False))
+        mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound)
+
+        # 6. Encode video with FFmpeg
+        set_job_progress(key_code, True, pct=80, msg="Encoding animated video with FFmpeg...", elapsed_s=int(time.time() - start_time))
+        output_mp4 = os.path.abspath(os.path.join(VIDEOS_DIR, f"{token}.mp4"))
+        ffmpeg_bin = get_ffmpeg()
+
+        cmd = [
+            ffmpeg_bin, '-y',
+            '-f', 'concat', '-safe', '0', '-i', 'concat.txt',
+        ]
+        if mixed_audio_path and os.path.exists(mixed_audio_path):
+            cmd.extend(['-i', os.path.abspath(mixed_audio_path)])
+            audio_args = ['-c:a', 'aac', '-b:a', '192k']
+        else:
+            cmd.extend(['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'])
+            audio_args = ['-c:a', 'aac']
+
+        cmd.extend([
+            '-vf', 'fps=30,scale=1080:1920:flags=lanczos,format=yuv420p',
+            '-c:v', 'libx264',
+            '-preset', 'veryfast',
+            '-crf', '18',
+            *audio_args,
+            '-shortest',
+            output_mp4
+        ])
+
+        print(f"Executing animated video FFmpeg: {' '.join(cmd)}")
+        proc = subprocess.run(cmd, cwd=temp_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode != 0:
+            err = proc.stderr.decode('utf-8', errors='ignore')
+            print(f"FFmpeg error: {err}")
+            raise RuntimeError(f"FFmpeg video encoding failed: {err[-300:]}")
+
+        # Cleanup temp directory
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
+
+        set_job_progress(key_code, False, pct=100, msg="Done!", elapsed_s=int(time.time() - start_time))
+
+        return {
+            "ok": True,
+            "token": token,
+            "download_url": f"/download/{token}",
+            "duration_s": round(final_total_s, 2),
+            "filepath": output_mp4,
+            "total_slides": len(pages),
+            "total_dms": len(messages)
+        }
+    except Exception as e:
+        set_job_progress(key_code, False, pct=0, msg=f"Error: {e}")
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
+        raise e
+
+

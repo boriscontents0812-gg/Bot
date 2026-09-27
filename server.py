@@ -44,7 +44,7 @@ from config import (
 from db import get_db, init_db
 from renderer import render_preview_image, parse_script
 from audio_generator import synthesize_clip, concat_wav_files, generate_beep_wav, get_available_voices
-from video_generator import generate_video_task, get_job_progress, VIDEOS_DIR
+from video_generator import generate_video_task, generate_slideshow_video_task, get_job_progress, VIDEOS_DIR
 
 init_db()
 
@@ -342,11 +342,12 @@ async def download_single_pic(page: int, request: Request):
         }
     )
 
-@app.post("/api/download_pics_zip")
-async def download_pics_zip(request: Request):
-    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
-    body = await request.json()
-
+async def export_and_save_project_pics(body: dict, key: str) -> dict:
+    """
+    Renders all screenshot pages (0 .. total_pages-1) using the upstream/web preview engine
+    (with full Apple Color Emoji and authentic font support) and saves them sequentially
+    (1.jpg, 2.jpg, ...) into data/downloads/{key}/{safe_project}_pics/ and updates {safe_project}_pics.zip.
+    """
     # 1. Render page 0 first to determine total_pages
     img0, total_pages = await render_page_preview(body, 0, key)
     total_pages = max(1, total_pages)
@@ -366,6 +367,12 @@ async def download_pics_zip(request: Request):
     project_pics_dir = os.path.join(user_downloads_dir, f"{safe_project}_pics")
     try:
         os.makedirs(project_pics_dir, exist_ok=True)
+        for existing_f in os.listdir(project_pics_dir):
+            if existing_f.lower().endswith(".jpg"):
+                try:
+                    os.remove(os.path.join(project_pics_dir, existing_f))
+                except Exception:
+                    pass
     except Exception:
         pass
 
@@ -373,9 +380,7 @@ async def download_pics_zip(request: Request):
     with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for idx, img_bytes in rendered_pics:
             filename = f"{idx}.jpg"
-            # Add to ZIP
             zf.writestr(filename, img_bytes)
-            # Save individually to disk
             try:
                 with open(os.path.join(project_pics_dir, filename), "wb") as pf:
                     pf.write(img_bytes)
@@ -383,8 +388,6 @@ async def download_pics_zip(request: Request):
                 pass
 
     zip_bytes = zip_buffer.getvalue()
-
-    # Save zip to disk
     zip_path = os.path.join(user_downloads_dir, f"{safe_project}_pics.zip")
     try:
         with open(zip_path, "wb") as zf_disk:
@@ -392,15 +395,43 @@ async def download_pics_zip(request: Request):
     except Exception:
         pass
 
+    return {
+        "ok": True,
+        "project": safe_project,
+        "pics_count": len(rendered_pics),
+        "files": [f"{i}.jpg" for i, _ in rendered_pics],
+        "pics_dir": project_pics_dir,
+        "zip_path": zip_path,
+        "zip_bytes": zip_bytes
+    }
+
+@app.post("/api/download_pics_zip")
+async def download_pics_zip(request: Request):
+    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
+    body = await request.json()
+    res = await export_and_save_project_pics(body, key)
     return Response(
-        content=zip_bytes,
+        content=res["zip_bytes"],
         media_type="application/zip",
         headers={
-            "Content-Disposition": f'attachment; filename="{safe_project}_pics.zip"',
-            "X-Total-Pics": str(len(rendered_pics)),
+            "Content-Disposition": f'attachment; filename="{res["project"]}_pics.zip"',
+            "X-Total-Pics": str(res["pics_count"]),
             "Cache-Control": "no-store"
         }
     )
+
+@app.post("/api/lock_and_export_pics")
+async def lock_and_export_pics(request: Request):
+    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
+    body = await request.json()
+    res = await export_and_save_project_pics(body, key)
+    return {
+        "ok": True,
+        "project": res["project"],
+        "pics_count": res["pics_count"],
+        "files": res["files"],
+        "pics_dir": res["pics_dir"]
+    }
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. Audio Pipeline
@@ -780,6 +811,111 @@ async def generate_video(request: Request):
         "status": "rendering",
         "detail": "Video rendering in progress. Polling for completion..."
     })
+
+@app.get("/api/video_assets_status")
+async def get_video_assets_status(request: Request, project: str = ""):
+    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
+    user_audio_dir = os.path.join(DATA_DIR, "audio", key)
+    full_audio_wav = os.path.join(user_audio_dir, "audio_full.wav")
+    clips_json = os.path.join(user_audio_dir, "clips.json")
+
+    has_audio = os.path.exists(full_audio_wav) and os.path.getsize(full_audio_wav) > 1000
+    clips_count = 0
+    audio_duration_ms = 0
+    audio_mtime = 0
+    if has_audio and os.path.exists(clips_json):
+        try:
+            with open(clips_json, "r", encoding="utf-8") as f:
+                clips_data = json.load(f)
+                clips_count = len(clips_data)
+                audio_duration_ms = sum(c.get("duration_ms", 0) for c in clips_data)
+            audio_mtime = int(os.path.getmtime(full_audio_wav))
+        except Exception:
+            pass
+
+    user_downloads_dir = os.path.join(DATA_DIR, "downloads", key)
+    pics_count = 0
+    pics_mtime = 0
+    pics_project = ""
+
+    if project:
+        safe_proj = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(project)).strip('_') or "conversation"
+        p_dir = os.path.join(user_downloads_dir, f"{safe_proj}_pics")
+        if os.path.isdir(p_dir):
+            jpgs = [f for f in os.listdir(p_dir) if f.endswith(".jpg")]
+            pics_count = len(jpgs)
+            pics_mtime = int(os.path.getmtime(p_dir))
+            pics_project = safe_proj
+
+    if pics_count == 0 and os.path.exists(user_downloads_dir):
+        for item in os.listdir(user_downloads_dir):
+            p = os.path.join(user_downloads_dir, item)
+            if os.path.isdir(p) and item.endswith("_pics"):
+                jpgs = [f for f in os.listdir(p) if f.endswith(".jpg")]
+                if len(jpgs) > pics_count:
+                    pics_count = len(jpgs)
+                    pics_mtime = int(os.path.getmtime(p))
+                    pics_project = item[:-5]
+
+    dur_sec = round(audio_duration_ms / 1000.0)
+    mins = dur_sec // 60
+    secs = dur_sec % 60
+    dur_str = f"{mins}:{secs:02d}"
+
+    return {
+        "ok": True,
+        "has_audio": has_audio,
+        "clips_count": clips_count,
+        "audio_duration_ms": audio_duration_ms,
+        "audio_duration_formatted": dur_str,
+        "audio_mtime": audio_mtime,
+        "has_pics": pics_count > 0,
+        "pics_count": pics_count,
+        "pics_mtime": pics_mtime,
+        "pics_project": pics_project
+    }
+
+@app.post("/api/generate_slideshow_video")
+async def generate_slideshow_video(request: Request):
+    key = require_auth(request)
+    payload = await request.json()
+
+    user_audio_dir = os.path.join(DATA_DIR, "audio", key)
+    full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
+    clips_json_path = os.path.join(user_audio_dir, "clips.json")
+
+    if not os.path.exists(full_audio_path) or not os.path.exists(clips_json_path):
+        raise HTTPException(
+            status_code=400,
+            detail="Full audio has not been generated yet. Please go to the Audio tab and click 'Generate Full Voice Audio' first."
+        )
+
+    try:
+        with open(clips_json_path, "r", encoding="utf-8") as f:
+            clips = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read audio clips: {e}")
+
+    try:
+        res = await generate_slideshow_video_task(
+            key_code=key,
+            payload=payload,
+            clips=clips,
+            audio_full_path=full_audio_path,
+            render_page_func=render_page_preview
+        )
+        with get_db() as conn:
+            conn.execute('''
+                INSERT OR REPLACE INTO videos (token, key_code, filename, filepath, duration_s, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (res["token"], key, f"{res['token']}.mp4", res["filepath"], res["duration_s"], time.time()))
+            conn.commit()
+        return res
+    except Exception as e:
+        print(f"Error in generate_slideshow_video: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to generate slideshow video: {str(e)}")
 
 @app.get("/api/last_video")
 async def get_last_video(request: Request):
