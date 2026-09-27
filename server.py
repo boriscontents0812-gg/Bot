@@ -902,11 +902,10 @@ async def shorten_video(request: Request):
         raise HTTPException(status_code=404, detail="Video not found")
     
     new_token = str(uuid.uuid4())
-    shortened_path = os.path.join(VIDEOS_DIR, f"{new_token}.mp4")
-    
-    from video_generator import FFMPEG_EXE
+    from video_generator import get_ffmpeg
+    ffmpeg_exe = get_ffmpeg()
     cmd = [
-        FFMPEG_EXE, '-y',
+        ffmpeg_exe, '-y',
         '-i', video_path,
         '-filter_complex', '[0:v]setpts=0.85*PTS[v];[0:a]atempo=1.176[a]',
         '-map', '[v]', '-map', '[a]',

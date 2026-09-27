@@ -9,13 +9,8 @@ import wave
 import struct
 
 from renderer import render_chat_frame, parse_script
-
-if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-    VIDEOS_DIR = "/tmp/data/videos"
-    DATA_DIR = "/tmp/data"
-else:
-    VIDEOS_DIR = os.path.join(os.path.dirname(__file__), 'data', 'videos')
-    DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+import config
+from config import BASE_DIR, DATA_DIR, VIDEOS_DIR, SFX_DIR
 
 try:
     os.makedirs(VIDEOS_DIR, exist_ok=True)
@@ -81,7 +76,7 @@ def prepare_mixed_audio(speech_audio_path, clips, temp_dir, notif_sound=True):
     if not notif_sound:
         return norm_speech
 
-    sfx_path = os.path.join(os.path.dirname(__file__), 'data', 'sfx', 'pop.wav')
+    sfx_path = os.path.join(SFX_DIR, 'pop.wav')
     if not os.path.exists(sfx_path):
         return norm_speech
 

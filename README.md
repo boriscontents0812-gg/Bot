@@ -83,12 +83,17 @@ All API keys, secrets, and environment parameters are centralized in `.env` (wit
 ```
 d:\Github\Bot\
 ├── server.py              # FastAPI server (all 62 routes)
+├── config.py              # Centralized settings & environment loader
 ├── db.py                  # SQLite database & data seeding
 ├── renderer.py            # PIL chat preview renderer (iOS & WhatsApp)
 ├── audio_generator.py     # ElevenLabs & synthetic audio engine
 ├── video_generator.py     # FFmpeg video compositing & encoding
-├── verify_all.py          # 15-test automated verification suite
-├── run.bat                # Windows 1-click startup batch script
+├── run_server.py          # Server runner with reload support & diagnostics
+├── run.bat                # 1-click startup batch script
+├── verify_all.py          # Quick runner for test suites
+├── tests/                 # Automated test suite
+│   ├── test_api.py        # 15-test API & auth verification suite
+│   └── test_pipeline.py   # End-to-end rendering pipeline integration test
 ├── templates/
 │   ├── landing.html       # Exact Botyk public landing page
 │   ├── app.html           # Full Studio web application

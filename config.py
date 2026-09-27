@@ -63,3 +63,12 @@ else:
 DB_PATH = os.path.join(DATA_DIR, "botyk.db")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+
+VIDEOS_DIR = os.path.join(DATA_DIR, "videos")
+AUDIO_DIR = os.path.join(DATA_DIR, "audio")
+SFX_DIR = os.path.join(DATA_DIR, "sfx")
+DOWNLOADS_DIR = os.path.join(DATA_DIR, "downloads")
+GAMEPLAY_DIR = os.path.join(DATA_DIR, "gameplay")
+MUSIC_DIR = os.path.join(DATA_DIR, "music")
+CONTACT_PHOTOS_DIR = os.path.join(DATA_DIR, "contact_photos")
+SCRIPT_IMAGES_DIR = os.path.join(DATA_DIR, "script_images")

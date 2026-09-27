@@ -6,9 +6,8 @@ import httpx
 import re
 
 import config
-from config import DATA_DIR, ELEVEN_API_KEY
+from config import AUDIO_DIR, ELEVEN_API_KEY
 
-AUDIO_DIR = os.path.join(DATA_DIR, 'audio')
 try:
     os.makedirs(AUDIO_DIR, exist_ok=True)
 except Exception:

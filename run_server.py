@@ -12,12 +12,14 @@ from config import HOST, PORT, DEFAULT_ACCESS_KEY
 
 if __name__ == "__main__":
     import uvicorn
+    reload_mode = "--reload" in sys.argv
     print("=" * 65)
-    print(" [GENGAR STUDIO] Local Autonomous Server")
-    print(f" - Local URL: http://{HOST}:{PORT}")
+    print(" [BOTYK STUDIO] Local Autonomous Server")
+    print(f" - Local URL:  http://{HOST}:{PORT}")
+    print(f" - Admin URL:  http://{HOST}:{PORT}/admin")
     print(f" - Default Key: {DEFAULT_ACCESS_KEY} (Unlimited Lifetime)")
-    print(" - Mode: 100% Self-Hosted (No third-party botyk credits needed)")
-    print(" - Max Duration: 8 Minutes (480 Seconds)")
-    print(" - Direct ElevenLabs TTS & Local GPU/CPU FFmpeg Engine Active")
+    print(" - Mode: 100% Self-Hosted (Unlimited Credits)")
+    print(" - Direct ElevenLabs TTS & Local FFmpeg Engine Active")
+    print(f" - Reload: {'Enabled' if reload_mode else 'Disabled'}")
     print("=" * 65)
-    uvicorn.run("server:app", host=HOST, port=PORT, reload=False)
+    uvicorn.run("server:app", host=HOST, port=PORT, reload=reload_mode)
