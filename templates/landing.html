@@ -1367,7 +1367,8 @@ async function doLandingLogin() {
       if (detail === 'Key expired') {
         err.innerHTML = 'Your access has expired. <a href="https://discord.gg/734KYsP3h7" target="_blank" style="color:#ff5050;text-decoration:underline">Open a ticket to renew →</a>';
       } else {
-        err.textContent = detail + ' — try key: 6C6W-K6LD-JRVV-QGTM';
+        const hintKey = '{{ default_key | default("") }}';
+        err.textContent = detail + (hintKey ? ' — try key: ' + hintKey : '');
       }
       btn.disabled = false;
       btn.textContent = 'Enter → Launch App';

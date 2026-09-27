@@ -2,8 +2,8 @@
 title Botyk - iMessage Video Generator
 echo ========================================================
 echo   Starting Botyk (iMessage Video Generator)
-echo   Access Key: 6C6W-K6LD-JRVV-QGTM
-echo   Admin Panel: http://127.0.0.1:8000/admin (Pass: admin123)
+echo   Configuration loaded securely from .env
+echo   Admin Panel: http://127.0.0.1:8000/admin
 echo ========================================================
 echo.
 

@@ -14,15 +14,17 @@ Double-click `run.bat` or run:
 
 Then navigate to: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
 
-### Pre-Configured Access Key
-- **Access Key**: `6C6W-K6LD-JRVV-QGTM`
-  - Discord User: `mONSEY`
-  - Starting Credits: `487 / 600`
-  - Status: Active
-- **Admin Panel**: [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin)
-  - Admin Password: `admin123`
+### 🔐 Environment Configuration (`.env`)
+All API keys, secrets, and environment parameters are centralized in `.env` (with a template in `.env.example`).
+- **`ELEVEN_API_KEY`**: Your ElevenLabs API key for AI text-to-speech voice generation.
+- **`DEFAULT_ACCESS_KEY`**: The default lifetime access key code.
+- **`ADMIN_PASSWORD`**: Admin panel password for `/admin`.
+- **`UPSTREAM_BASE`**: Upstream server URL.
+- **`SESSION_COOKIE_NAME`**: Session cookie name.
+- **`HOST` & `PORT`**: Server host and port binding.
 
 ---
+
 
 ## 📱 Features
 

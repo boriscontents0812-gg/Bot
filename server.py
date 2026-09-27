@@ -1,9 +1,11 @@
 import os
+import io
 import time
 import json
 import uuid
 import math
 import shutil
+import zipfile
 import asyncio
 import re
 import subprocess
@@ -16,6 +18,13 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+import config
+from config import (
+    BASE_DIR, TEMPLATES_DIR, ASSETS_DIR, DATA_DIR,
+    UPSTREAM_BASE, SESSION_COOKIE_NAME, DEFAULT_ACCESS_KEY,
+    DEFAULT_USERNAME, ADMIN_PASSWORD, ELEVEN_API_KEY, SECRET_KEY,
+    HOST, PORT
+)
 from db import get_db, init_db
 from renderer import render_preview_image, parse_script
 from audio_generator import synthesize_clip, concat_wav_files
@@ -24,19 +33,6 @@ from video_generator import generate_video_task, get_job_progress, VIDEOS_DIR
 init_db()
 
 app = FastAPI(title="iMessage Video Generator", version="0.1.0")
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")
-if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-    DATA_DIR = "/tmp/data"
-    try:
-        os.makedirs(DATA_DIR, exist_ok=True)
-    except Exception:
-        pass
-else:
-    DATA_DIR = os.path.join(BASE_DIR, "data")
-UPSTREAM_BASE = "https://botyk.app"
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
@@ -105,7 +101,7 @@ def sanitize_script_voices_for_upstream(script_text: str) -> str:
 # Helper: Session Auth
 # ─────────────────────────────────────────────────────────────────────────────
 def get_current_user_key(request: Request) -> Optional[str]:
-    code = request.cookies.get("imsg_session")
+    code = request.cookies.get(SESSION_COOKIE_NAME)
     if not code:
         code = request.query_params.get("key")
     if not code:
@@ -145,12 +141,12 @@ def root(request: Request):
     
     if key:
         resp = templates.TemplateResponse(request=request, name="app.html", context={"is_demo": False, "crossfade_enabled": False})
-        resp.set_cookie("imsg_session", key, max_age=2592000, path="/", httponly=True, samesite="lax")
+        resp.set_cookie(SESSION_COOKIE_NAME, key, max_age=2592000, path="/", httponly=True, samesite="lax")
         return resp
     elif is_demo:
         return templates.TemplateResponse(request=request, name="app.html", context={"is_demo": True, "crossfade_enabled": False})
     else:
-        return templates.TemplateResponse(request=request, name="landing.html", context={})
+        return templates.TemplateResponse(request=request, name="landing.html", context={"default_key": DEFAULT_ACCESS_KEY})
 
 @app.get("/demo")
 def demo_entry():
@@ -177,13 +173,13 @@ async def login(request: Request):
         code = row["code"]
         
     resp = JSONResponse(content={"ok": True, "code": code})
-    resp.set_cookie("imsg_session", code, max_age=2592000, path="/", httponly=True, samesite="lax")
+    resp.set_cookie(SESSION_COOKIE_NAME, code, max_age=2592000, path="/", httponly=True, samesite="lax")
     return resp
 
 @app.post("/logout")
 def logout():
     resp = JSONResponse(content={"ok": True})
-    resp.delete_cookie("imsg_session", path="/")
+    resp.delete_cookie(SESSION_COOKIE_NAME, path="/")
     return resp
 
 @app.get("/me")
@@ -193,7 +189,7 @@ async def me(request: Request):
     # Check upstream for latest sync (voice model, speed, etc.)
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            res = await client.get(f"{UPSTREAM_BASE}/me", headers={"Cookie": f"imsg_session={key}"})
+            res = await client.get(f"{UPSTREAM_BASE}/me", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
             if res.status_code == 200:
                 upstream_data = res.json()
     except Exception:
@@ -250,7 +246,7 @@ async def save_voice_settings(request: Request):
     # Relay to upstream
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            await client.post(f"{UPSTREAM_BASE}/api/voice_settings", json=data, headers={"Cookie": f"imsg_session={key}"})
+            await client.post(f"{UPSTREAM_BASE}/api/voice_settings", json=data, headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
     except Exception:
         pass
 
@@ -279,36 +275,113 @@ async def save_voice_settings(request: Request):
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. Preview Generation (Exact Upstream Output + Local Fallback)
 # ─────────────────────────────────────────────────────────────────────────────
+async def render_page_preview(body: dict, page: int, key: str) -> tuple[bytes, int]:
+    body_page = body.copy()
+    body_page["page"] = page
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.post(
+                f"{UPSTREAM_BASE}/preview/{page}",
+                json=body_page,
+                headers={"Content-Type": "application/json", "Cookie": f"{SESSION_COOKIE_NAME}={key}"}
+            )
+            if resp.status_code == 200 and len(resp.content) > 500:
+                tp_hdr = resp.headers.get("X-Total-Pages") or resp.headers.get("x-total-pages", "1")
+                try:
+                    tp = int(tp_hdr)
+                except ValueError:
+                    tp = 1
+                return resp.content, tp
+    except Exception as e:
+        pass
+
+    img_bytes, total_pages = render_preview_image(body_page)
+    return img_bytes, total_pages
+
 @app.post("/preview/{page}")
 async def preview(page: int, request: Request):
     body = await request.json()
-    body["page"] = page
-    key = get_current_user_key(request) or "6C6W-K6LD-JRVV-QGTM"
-
-    # 1. Query upstream for 100% exact rendering
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.post(
-                f"{UPSTREAM_BASE}/preview/{page}",
-                json=body,
-                headers={"Content-Type": "application/json", "Cookie": f"imsg_session={key}"}
-            )
-            if resp.status_code == 200 and len(resp.content) > 500:
-                total_pages = resp.headers.get("X-Total-Pages") or resp.headers.get("x-total-pages", "1")
-                return Response(
-                    content=resp.content,
-                    media_type="image/jpeg",
-                    headers={"X-Total-Pages": total_pages, "Cache-Control": "no-store"}
-                )
-    except Exception as e:
-        print(f"Notice: Upstream preview fallback active: {e}")
-
-    # 2. Local fallback
-    img_bytes, total_pages = render_preview_image(body)
+    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
+    img_bytes, total_pages = await render_page_preview(body, page, key)
     return Response(
         content=img_bytes,
         media_type="image/jpeg",
         headers={"X-Total-Pages": str(total_pages), "Cache-Control": "no-store"}
+    )
+
+@app.post("/api/download_pic/{page}")
+async def download_single_pic(page: int, request: Request):
+    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
+    body = await request.json()
+    img_bytes, total_pages = await render_page_preview(body, page, key)
+    pic_num = page + 1
+    return Response(
+        content=img_bytes,
+        media_type="image/jpeg",
+        headers={
+            "Content-Disposition": f'attachment; filename="{pic_num}.jpg"',
+            "X-Total-Pages": str(total_pages),
+            "Cache-Control": "no-store"
+        }
+    )
+
+@app.post("/api/download_pics_zip")
+async def download_pics_zip(request: Request):
+    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
+    body = await request.json()
+
+    # 1. Render page 0 first to determine total_pages
+    img0, total_pages = await render_page_preview(body, 0, key)
+    total_pages = max(1, total_pages)
+
+    # 2. Render all pages in sequential order: 1, 2, 3...
+    rendered_pics = [(1, img0)]
+    for p in range(1, total_pages):
+        img_p, _ = await render_page_preview(body, p, key)
+        rendered_pics.append((p + 1, img_p))
+
+    # 3. Setup paths for local saving and zip archive
+    project_name = body.get("project") or "conversation"
+    safe_project = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(project_name)).strip('_') or "conversation"
+
+    user_downloads_dir = os.path.join(DATA_DIR, "downloads", key)
+    project_pics_dir = os.path.join(user_downloads_dir, f"{safe_project}_pics")
+    try:
+        os.makedirs(project_pics_dir, exist_ok=True)
+    except Exception:
+        pass
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for idx, img_bytes in rendered_pics:
+            filename = f"{idx}.jpg"
+            # Add to ZIP
+            zf.writestr(filename, img_bytes)
+            # Save individually to disk
+            try:
+                with open(os.path.join(project_pics_dir, filename), "wb") as pf:
+                    pf.write(img_bytes)
+            except Exception:
+                pass
+
+    zip_bytes = zip_buffer.getvalue()
+
+    # Save zip to disk
+    zip_path = os.path.join(user_downloads_dir, f"{safe_project}_pics.zip")
+    try:
+        with open(zip_path, "wb") as zf_disk:
+            zf_disk.write(zip_bytes)
+    except Exception:
+        pass
+
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_project}_pics.zip"',
+            "X-Total-Pics": str(len(rendered_pics)),
+            "Cache-Control": "no-store"
+        }
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -329,12 +402,12 @@ async def generate_audio(request: Request):
     try:
         with get_db() as conn:
             u_row = conn.execute("SELECT eleven_key FROM access_keys WHERE UPPER(code) = ?", (key.upper(),)).fetchone()
-            if u_row and u_row["eleven_key"]:
-                e_key = u_row["eleven_key"]
+            e_key = (u_row["eleven_key"] if u_row and u_row["eleven_key"] else "") or ELEVEN_API_KEY
+            if e_key:
                 async with get_upstream_client(timeout=4.0) as client:
-                    await client.post(f"{UPSTREAM_BASE}/api/eleven_key", json={"key": e_key}, headers={"Cookie": f"imsg_session={key}"})
-                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles", json={"name": "active", "key": e_key}, headers={"Cookie": f"imsg_session={key}"})
-                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles/active/activate", headers={"Cookie": f"imsg_session={key}"})
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_key", json={"key": e_key}, headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles", json={"name": "active", "key": e_key}, headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
+                    await client.post(f"{UPSTREAM_BASE}/api/eleven_profiles/active/activate", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
     except Exception:
         pass
 
@@ -347,7 +420,7 @@ async def generate_audio(request: Request):
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_audio",
                 json=upstream_data,
-                headers={"Content-Type": "application/json", "Cookie": f"imsg_session={key}"}
+                headers={"Content-Type": "application/json", "Cookie": f"{SESSION_COOKIE_NAME}={key}"}
             )
             if resp.status_code == 200:
                 up_res = resp.json()
@@ -365,7 +438,7 @@ async def generate_audio(request: Request):
                 try:
                     full_resp = await client.get(
                         f"{UPSTREAM_BASE}/api/audio_full",
-                        headers={"Cookie": f"imsg_session={key}"}
+                        headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"}
                     )
                     if full_resp.status_code == 200:
                         user_audio_dir = os.path.join(DATA_DIR, "audio", key)
@@ -395,7 +468,7 @@ async def generate_audio(request: Request):
     except Exception:
         user = {}
     
-    eleven_key = user.get("eleven_key", "")
+    eleven_key = (user.get("eleven_key") or "").strip() or ELEVEN_API_KEY
     voice_model = user.get("voice_model") or "eleven_multilingual_v2"
     voice_stability = user.get("voice_stability") or 0.25
     voice_similarity = user.get("voice_similarity") or 0.70
@@ -508,7 +581,7 @@ async def regenerate_clip(request: Request):
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/regenerate_clip",
                 json=data,
-                headers={"Content-Type": "application/json", "Cookie": f"imsg_session={key}"}
+                headers={"Content-Type": "application/json", "Cookie": f"{SESSION_COOKIE_NAME}={key}"}
             )
             if resp.status_code == 200:
                 res_data = resp.json()
@@ -525,7 +598,7 @@ async def regenerate_clip(request: Request):
     except Exception:
         user = {}
 
-    eleven_key = user.get("eleven_key", "")
+    eleven_key = (user.get("eleven_key") or "").strip() or ELEVEN_API_KEY
     voice_model = user.get("voice_model") or "eleven_multilingual_v2"
     voice_stability = user.get("voice_stability") or 0.25
     voice_similarity = user.get("voice_similarity") or 0.70
@@ -563,7 +636,7 @@ async def serve_clip(index: int, request: Request):
         return FileResponse(clip_path, media_type="audio/wav")
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/api/audio/{index}", headers={"Cookie": f"imsg_session={key}"})
+            resp = await client.get(f"{UPSTREAM_BASE}/api/audio/{index}", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
             if resp.status_code == 200:
                 try:
                     os.makedirs(os.path.dirname(clip_path), exist_ok=True)
@@ -584,7 +657,7 @@ async def serve_full_audio(request: Request):
         return FileResponse(full_path, media_type="audio/wav")
     try:
         async with httpx.AsyncClient(timeout=25.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/api/audio_full", headers={"Cookie": f"imsg_session={key}"})
+            resp = await client.get(f"{UPSTREAM_BASE}/api/audio_full", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
             if resp.status_code == 200:
                 try:
                     os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -610,7 +683,7 @@ async def video_progress(request: Request):
     key = get_current_user_key(request) or "default"
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/api/video_progress", headers={"Cookie": f"imsg_session={key}"})
+            resp = await client.get(f"{UPSTREAM_BASE}/api/video_progress", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("active"):
@@ -677,7 +750,7 @@ async def generate_video(request: Request):
             resp = await client.post(
                 f"{UPSTREAM_BASE}/api/generate_video",
                 json=upstream_payload,
-                headers={"Content-Type": "application/json", "Cookie": f"imsg_session={key}"}
+                headers={"Content-Type": "application/json", "Cookie": f"{SESSION_COOKIE_NAME}={key}"}
             )
             if resp.status_code == 200:
                 v_res = resp.json()
@@ -747,7 +820,7 @@ async def get_last_video(request: Request):
                 }
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/api/last_video", headers={"Cookie": f"imsg_session={key}"})
+            resp = await client.get(f"{UPSTREAM_BASE}/api/last_video", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("download_url"):
@@ -982,7 +1055,7 @@ async def create_project(request: Request):
     
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            await client.post(f"{UPSTREAM_BASE}/api/projects/create", json=data, headers={"Cookie": f"imsg_session={key}"})
+            await client.post(f"{UPSTREAM_BASE}/api/projects/create", json=data, headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
     except Exception:
         pass
 
@@ -1015,7 +1088,7 @@ async def save_project(name: str, request: Request):
 
     try:
         async with get_upstream_client(timeout=5.0) as client:
-            await client.post(f"{UPSTREAM_BASE}/api/projects/{name}/save", json=upstream_data, headers={"Cookie": f"imsg_session={key}"})
+            await client.post(f"{UPSTREAM_BASE}/api/projects/{name}/save", json=upstream_data, headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
     except Exception:
         pass
 
@@ -1032,7 +1105,7 @@ async def load_project(name: str, request: Request):
     key = require_auth(request)
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/api/projects/{name}/load", headers={"Cookie": f"imsg_session={key}"})
+            resp = await client.get(f"{UPSTREAM_BASE}/api/projects/{name}/load", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
             if resp.status_code == 200:
                 return resp.json()
     except Exception:
@@ -1049,7 +1122,7 @@ async def delete_project(name: str, request: Request):
     key = require_auth(request)
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            await client.delete(f"{UPSTREAM_BASE}/api/projects/{name}", headers={"Cookie": f"imsg_session={key}"})
+            await client.delete(f"{UPSTREAM_BASE}/api/projects/{name}", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
     except Exception:
         pass
 
@@ -1062,10 +1135,39 @@ async def delete_project(name: str, request: Request):
 # 7. ElevenLabs Profiles
 # ─────────────────────────────────────────────────────────────────────────────
 @app.get("/api/eleven_quota")
-async def eleven_quota():
+async def eleven_quota(request: Request):
+    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
+    e_key = ELEVEN_API_KEY
+    if key:
+        with get_db() as conn:
+            row = conn.execute("SELECT eleven_key FROM access_keys WHERE UPPER(code) = ?", (key.upper(),)).fetchone()
+            if row and row["eleven_key"]:
+                e_key = row["eleven_key"]
+
+    if e_key and len(e_key) > 10:
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                resp = await client.get("https://api.elevenlabs.io/v1/user/subscription", headers={"xi-api-key": e_key})
+                if resp.status_code == 200:
+                    data = resp.json()
+                    char_count = data.get("character_count", 0)
+                    char_limit = data.get("character_limit", 10000)
+                    remaining = max(0, char_limit - char_count)
+                    pct = round((char_count / char_limit * 100), 1) if char_limit else 0
+                    return {
+                        "ok": True,
+                        "remaining": remaining,
+                        "used": char_count,
+                        "limit": char_limit,
+                        "pct": pct,
+                        "message": f"{remaining:,} chars remaining ({char_count:,} / {char_limit:,} — {pct}%)"
+                    }
+        except Exception:
+            pass
+
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/api/eleven_quota", headers={"Cookie": "imsg_session=6C6W-K6LD-JRVV-QGTM"})
+            resp = await client.get(f"{UPSTREAM_BASE}/api/eleven_quota", headers={"Cookie": f"{SESSION_COOKIE_NAME}={DEFAULT_ACCESS_KEY}"})
             if resp.status_code == 200:
                 return resp.json()
     except Exception:
@@ -1085,7 +1187,7 @@ async def list_eleven_profiles(request: Request):
     key = require_auth(request)
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(f"{UPSTREAM_BASE}/api/eleven_profiles", headers={"Cookie": f"imsg_session={key}"})
+            resp = await client.get(f"{UPSTREAM_BASE}/api/eleven_profiles", headers={"Cookie": f"{SESSION_COOKIE_NAME}={key}"})
             if resp.status_code == 200:
                 return resp.json()
     except Exception:
@@ -1153,8 +1255,8 @@ async def admin_login(request: Request):
     password = data.get("password", "")
     with get_db() as conn:
         cfg = conn.execute("SELECT value FROM admin_config WHERE key = 'admin_password'").fetchone()
-        admin_pw = cfg["value"] if cfg else "admin123"
-        if password == admin_pw or password == "admin":
+        admin_pw = cfg["value"] if cfg else ADMIN_PASSWORD
+        if password == admin_pw:
             resp = JSONResponse(content={"ok": True})
             resp.set_cookie("imsg_admin", "1", max_age=86400, path="/", httponly=True)
             return resp

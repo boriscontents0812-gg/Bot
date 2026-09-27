@@ -5,11 +5,10 @@ import math
 import httpx
 import re
 
-if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-    AUDIO_DIR = "/tmp/data/audio"
-else:
-    AUDIO_DIR = os.path.join(os.path.dirname(__file__), 'data', 'audio')
+import config
+from config import DATA_DIR, ELEVEN_API_KEY
 
+AUDIO_DIR = os.path.join(DATA_DIR, 'audio')
 try:
     os.makedirs(AUDIO_DIR, exist_ok=True)
 except Exception:
@@ -74,7 +73,8 @@ VOICE_MAP = {
     "bill": "pqHfZKP75CvOlQylNhV4",
 }
 
-async def synthesize_clip(text, voice_name, eleven_key, model_id='eleven_multilingual_v2', stability=0.25, similarity=0.7, speed=1.0, side=1):
+async def synthesize_clip(text, voice_name, eleven_key=None, model_id='eleven_multilingual_v2', stability=0.25, similarity=0.7, speed=1.0, side=1):
+    eleven_key = (eleven_key or "").strip() or ELEVEN_API_KEY or os.environ.get("ELEVEN_API_KEY", "")
     if eleven_key and len(eleven_key) > 10:
         # Attempt real ElevenLabs API call
         try:

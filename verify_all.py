@@ -5,10 +5,13 @@ import urllib.parse
 import json
 import http.cookiejar
 
+import config
+from config import DEFAULT_ACCESS_KEY, ADMIN_PASSWORD
+
 # Ensure stdout handles UTF-8 cleanly
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-BASE = "http://127.0.0.1:8000"
+BASE = f"http://{config.HOST}:{config.PORT}"
 
 cj = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
@@ -24,13 +27,13 @@ def test_unauthenticated_root():
         print("[PASS] 1. GET / (unauthenticated) -> Returns exact Landing Page")
 
 def test_login_flow():
-    data = json.dumps({"code": "6C6W-K6LD-JRVV-QGTM"}).encode('utf-8')
+    data = json.dumps({"code": DEFAULT_ACCESS_KEY}).encode('utf-8')
     req = urllib.request.Request(f"{BASE}/login", data=data, headers={"Content-Type": "application/json"})
     with opener.open(req) as resp:
         assert resp.status == 200
         res_json = json.loads(resp.read().decode('utf-8'))
         assert res_json.get("ok") is True
-        print("[PASS] 2. POST /login with 6C6W-K6LD-JRVV-QGTM -> Returns 200 OK & Sets session cookie")
+        print(f"[PASS] 2. POST /login with {DEFAULT_ACCESS_KEY} -> Returns 200 OK & Sets session cookie")
 
 def test_authenticated_root():
     req = urllib.request.Request(f"{BASE}/")
@@ -137,7 +140,7 @@ def test_admin_flow():
         assert "Admin Panel" in html
         print("[PASS] 13. GET /admin -> Returns Admin login interface")
 
-    data = json.dumps({"password": "admin123"}).encode('utf-8')
+    data = json.dumps({"password": ADMIN_PASSWORD}).encode('utf-8')
     req_login = urllib.request.Request(f"{BASE}/admin/login", data=data, headers={"Content-Type": "application/json"})
     with opener.open(req_login) as resp:
         assert resp.status == 200

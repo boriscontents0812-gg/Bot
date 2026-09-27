@@ -781,7 +781,7 @@
         <div class="tabs">
           <button class="tab-btn active" onclick="setTab(this,'preview')">preview</button>
           <button class="tab-btn" onclick="setTab(this,'audio')">audio</button>
-          <button class="tab-btn" onclick="setTab(this,'video')">video</button>
+          <button class="tab-btn" onclick="setTab(this,'video')">pics</button>
         </div>
 
         <!-- ── PREVIEW tab ── -->
@@ -802,6 +802,17 @@
             <button class="nav-btn" onclick="navPage(1)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+            <button class="btn btn-primary" id="btn-download-pics" onclick="doDownloadPics()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Download Pics (ZIP)</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-download-current-pic" onclick="doDownloadCurrentPic()" style="height:34px;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Download Current Pic (<span id="btn-cur-pic-label">1</span>.jpg)</span>
+            </button>
+            <div id="download-pics-status" style="font-size:12px;color:var(--muted-fg);text-align:center;min-height:16px"></div>
           </div>
         </div>
 
@@ -855,21 +866,17 @@
           </button>
         </div>
 
-        <!-- ── VIDEO tab ── -->
+        <!-- ── PICS tab ── -->
         <div id="panel-video" class="tab-panel hidden">
-          <div class="video-wrap" id="video-wrap">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.3"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-            <span style="opacity:.4;font-size:12px">Video will appear here after generation</span>
+          <div class="video-wrap" id="video-wrap" style="padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.45"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <div style="font-size:14px;font-weight:600;color:var(--fg)">Export Conversation Pictures</div>
+            <div style="opacity:.6;font-size:12px;max-width:280px;line-height:1.4">Download all generated pictures in order (1.jpg, 2.jpg, 3.jpg...) in a single ZIP file.</div>
           </div>
-          <button class="btn btn-primary" id="btn-download-video" style="height:44px;font-size:14px" disabled>
+          <button class="btn btn-primary" id="btn-download-pics-tab" onclick="doDownloadPics()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download video
+            Download Pics (ZIP)
           </button>
-          <button id="btn-shorten" class="btn btn-warn btn-sm" onclick="doShortenVideo()" style="display:none">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Shorten to 2:59
-          </button>
-          <div id="shorten-hint" style="font-size:11px;color:var(--muted-fg);text-align:center;display:none">Shorten re-renders at higher speed to fit under 3 minutes</div>
         </div>
 
       </div>
@@ -1176,16 +1183,10 @@
           <button class="btn btn-sm btn-primary" onclick="hideConfirm('confirm-update');doUpdateAudio()">Confirm</button>
           <button class="btn btn-sm btn-secondary" onclick="hideConfirm('confirm-update')">Cancel</button>
         </div>
-        <button class="btn btn-dark" id="btn-gen-video" onclick="showConfirm('confirm-video')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
-          Generate Video
+        <button class="btn btn-primary" id="btn-action-download-pics" onclick="doDownloadPics()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Pics (ZIP)
         </button>
-        <span id="render-estimate" style="font-size:11px;color:var(--muted-fg)"></span>
-        <div id="confirm-video" class="confirm-row" style="display:none">
-          <span class="confirm-label">Generate video from current audio?</span>
-          <button class="btn btn-sm btn-primary" onclick="hideConfirm('confirm-video');doGenerateVideo()">Confirm</button>
-          <button class="btn btn-sm btn-secondary" onclick="hideConfirm('confirm-video')">Cancel</button>
-        </div>
       </div>
 
       </div><!-- END panel-ios -->
@@ -1372,15 +1373,10 @@
           <button class="btn btn-sm btn-primary" onclick="hideConfirm('wa-confirm-update');doUpdateAudio()">Confirm</button>
           <button class="btn btn-sm btn-secondary" onclick="hideConfirm('wa-confirm-update')">Cancel</button>
         </div>
-        <button class="btn btn-dark" id="wa-btn-gen-video" onclick="showConfirm('wa-confirm-video')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
-          Generate Video
+        <button class="btn btn-primary" id="wa-btn-action-download-pics" onclick="doDownloadPics()" style="height:44px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Pics (ZIP)
         </button>
-        <div id="wa-confirm-video" class="confirm-row" style="display:none">
-          <span class="confirm-label">Generate video from current audio?</span>
-          <button class="btn btn-sm btn-primary" onclick="hideConfirm('wa-confirm-video');doGenerateVideo()">Confirm</button>
-          <button class="btn btn-sm btn-secondary" onclick="hideConfirm('wa-confirm-video')">Cancel</button>
-        </div>
       </div>
 
       </div><!-- END panel-whatsapp -->
@@ -1804,6 +1800,8 @@
         if (tp) {
           totalPages = Math.max(1, parseInt(tp, 10));
           document.getElementById('page-label').textContent = `${currentPage + 1} / ${totalPages}`;
+          const cpl = document.getElementById('btn-cur-pic-label');
+          if (cpl) cpl.textContent = currentPage + 1;
         }
         const blob = await res.blob();
         const newUrl = URL.createObjectURL(blob);
@@ -1824,6 +1822,8 @@
     totalPages = Math.max(1, Math.ceil(messages.length / 6));
     currentPage = 0;
     document.getElementById('page-label').textContent = `1 / ${totalPages}`;
+    const cpl = document.getElementById('btn-cur-pic-label');
+    if (cpl) cpl.textContent = '1';
 
     // Update contact list
     const list = document.getElementById('contact-list');
@@ -1879,7 +1879,85 @@
   function navPage(dir) {
     currentPage = Math.max(0, Math.min(totalPages - 1, currentPage + dir));
     document.getElementById('page-label').textContent = `${currentPage + 1} / ${totalPages}`;
+    const cpl = document.getElementById('btn-cur-pic-label');
+    if (cpl) cpl.textContent = currentPage + 1;
     refreshPreview();
+  }
+
+  // ── Download Pics (ZIP in order 1.jpg, 2.jpg... and single pic) ─────────────────
+  async function doDownloadPics() {
+    const btnIds = ['btn-download-pics', 'btn-download-pics-tab', 'btn-action-download-pics', 'wa-btn-action-download-pics'];
+    const statusEl = document.getElementById('download-pics-status');
+
+    const setBusy = (isBusy, text) => {
+      btnIds.forEach(id => {
+        const b = document.getElementById(id);
+        if (b) {
+          b.disabled = isBusy;
+          if (text) {
+            b.innerHTML = isBusy
+              ? `<span style="display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;margin-right:6px"></span> ${text}`
+              : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Pics (ZIP)`;
+          }
+        }
+      });
+      if (statusEl) statusEl.textContent = text || '';
+    };
+
+    try {
+      setBusy(true, 'Rendering & zipping...');
+      setStatus('Generating conversation pictures in order (1.jpg, 2.jpg...)...');
+
+      const body = getPreviewBody(0);
+      const res = await fetch('/api/download_pics_zip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Failed to generate pictures' }));
+        throw new Error(err.detail || 'Download failed');
+      }
+
+      const totalPics = res.headers.get('X-Total-Pics') || 'all';
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const projName = (_currentProject || 'conversation').replace(/[^a-zA-Z0-9_\-]/g, '_');
+      a.download = `${projName}_pics.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+      setBusy(false);
+      setStatus(`✅ Downloaded ${totalPics} pictures in order (1.jpg, 2.jpg...) in ${projName}_pics.zip!`);
+      if (statusEl) {
+        statusEl.textContent = `✅ Downloaded ${totalPics} pics (1, 2, 3...) in ZIP and saved locally!`;
+        setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 6000);
+      }
+    } catch (err) {
+      setBusy(false);
+      setStatus('❌ Error downloading pics: ' + err.message);
+      if (statusEl) statusEl.textContent = 'Error: ' + err.message;
+    }
+  }
+
+  function doDownloadCurrentPic() {
+    const img = document.getElementById('preview-img');
+    if (!img || !img.src) {
+      setStatus('Preview image not ready yet.');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = `${currentPage + 1}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setStatus(`Downloaded current picture as ${currentPage + 1}.jpg`);
   }
 
   // ── Disclosures ────────────────────────────────────────────────────────────────
