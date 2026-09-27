@@ -25,10 +25,10 @@ def test_unauthenticated_root():
     with opener.open(req) as resp:
         assert resp.status == 200
         html = resp.read().decode('utf-8')
-        assert "Botyk" in html
-        assert "landing-key-input" in html
-        assert "Ultimate iMessage Toolkit" in html
-        print("[PASS] 1. GET / (unauthenticated) -> Returns exact Landing Page")
+        assert "iMessage Video Generator" in html
+        assert "script-input" in html
+        assert "const IS_DEMO = false;" in html
+        print("[PASS] 1. GET / (unauthenticated) -> Returns full Studio App directly (no landing page)")
 
 def test_login_flow():
     data = json.dumps({"code": DEFAULT_ACCESS_KEY}).encode('utf-8')
@@ -68,15 +68,15 @@ def test_demo_flow():
     with demo_opener.open(req) as resp:
         assert resp.status == 200
         html = resp.read().decode('utf-8')
-        assert "const IS_DEMO = true;" in html
-        print("[PASS] 5. GET /demo -> Sets imsg_demo cookie and renders Studio in demo mode (IS_DEMO = true)")
+        assert "iMessage Video Generator" in html
+        print("[PASS] 5. GET /demo -> Redirects to / and renders Studio App")
 
     req2 = urllib.request.Request(f"{BASE}/demo/exit")
     with demo_opener.open(req2) as resp:
         assert resp.status == 200
         html2 = resp.read().decode('utf-8')
-        assert "landing-key-input" in html2
-        print("[PASS] 6. GET /demo/exit -> Clears demo cookie and returns to Landing Page")
+        assert "iMessage Video Generator" in html2
+        print("[PASS] 6. GET /demo/exit -> Redirects to / and renders Studio App")
 
 def test_preview_generation():
     body_ios = {
