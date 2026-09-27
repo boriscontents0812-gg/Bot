@@ -34,17 +34,8 @@ All API keys, secrets, and environment parameters are centralized in `.env` (wit
 
 ## 📱 Features
 
-1. **Exact Botyk Landing Page (`/`)**:
-   - Floating 3D 3-phone mockup with Apple island notch and realistic shadows.
-   - Dynamic live ticker banner (ElevenLabs TTS, Gameplay Backgrounds, 1080p Export, Rizz Mode).
-   - Social proof metrics (12K+ videos, 340M+ views, 99% viral rate).
-   - Features grid with high-resolution Apple emojis.
-   - Pricing cards (Starter, Standard with 15% discount badge, Pro with 20% discount badge).
-   - Access Key input (`XXXX-XXXX-XXXX-XXXX`) with instant verification and redirect.
-   - Interactive 4-video looping demo carousel (Subway Surfers, GTA, Minecraft gameplay backgrounds).
-   - 10-second limited offer modal (Claim 100 free credits via Discord).
-
-2. **Studio Web Application (Full App)**:
+1. **Studio Web Application (`/`)**:
+   - Direct-to-app workflow: Self-hosted Studio interface loads immediately at root (`/`) without landing page or login prompts.
    - **Dual Platform Styles**:
      - **iOS iMessage Mode**: Blue outgoing bubbles, grey incoming bubbles, camera icon, chevron, timestamps, contact avatar.
      - **WhatsApp Mode**: Dark/light themes, dark green outgoing bubbles, dark grey incoming bubbles, WhatsApp wallpaper background, online status, phone and video call icons.
@@ -56,11 +47,11 @@ All API keys, secrets, and environment parameters are centralized in `.env` (wit
      - Fast syntax parser (`1:Name> text`, `2:Name> text`, `2: img: image_name`, `wing`, `rizz`, `plug`).
      - Real-time debounced preview (`POST /preview/{page}`) returning exact 9:16 vertical chroma-green frames with pagination.
    - **ElevenLabs Voice Settings & TTS**:
-     - ElevenLabs profiles manager (Multilingual v2, Turbo v2.5, Flash v2.5).
+     - Automated backend voice generation via `ELEVEN_API_KEY` in `.env` (no manual UI key insertion required).
+     - Character voice selection dropdowns mapped per speaker directly in the Audio tab.
+     - Models support: Multilingual v2, Turbo v2.5, Flash v2.5.
      - Stability, Similarity, Audio Speed, and TTS Speed controls.
-     - Quota monitor (`/api/eleven_quota`).
-     - In-browser audio player with waveform scrubber and single-clip regenerator (`/api/regenerate_clip`).
-     - Update Audio mode (only generates new lines to save credits).
+     - In-browser full audio player with custom waveform seek bar.
    - **Video Rendering Engine**:
      - FFmpeg-powered vertical 1080x1920 video generator (`POST /api/generate_video`).
      - Chroma keying of chat frames over gameplay backgrounds.
@@ -74,9 +65,9 @@ All API keys, secrets, and environment parameters are centralized in `.env` (wit
      - Background music library and uploader.
    - **Projects**:
      - Create, save, auto-save, load, and delete projects.
-     - Pre-loaded with 5 projects: `Promo`, `23`, `w`, `Goated`, `1`.
+     - Pre-loaded with projects: `Promo`, `23`, `w`, `Goated`, `1`.
 
-3. **Admin Panel (`/admin`)**:
+2. **Admin Panel (`/admin`)**:
    - Access key generator and inspector.
    - Add/edit credit balances.
    - Activate, deactivate, extend, or delete keys.
@@ -88,7 +79,7 @@ All API keys, secrets, and environment parameters are centralized in `.env` (wit
 
 ```
 d:\Github\Bot\
-├── server.py              # FastAPI server (all 62 routes)
+├── server.py              # FastAPI server (direct Studio app routing)
 ├── config.py              # Centralized settings & environment loader
 ├── db.py                  # SQLite database & data seeding
 ├── renderer.py            # PIL chat preview renderer (iOS & WhatsApp)
@@ -101,7 +92,6 @@ d:\Github\Bot\
 │   ├── test_api.py        # 15-test API & auth verification suite
 │   └── test_pipeline.py   # End-to-end rendering pipeline integration test
 ├── templates/
-│   ├── landing.html       # Exact Botyk public landing page
 │   ├── app.html           # Full Studio web application
 │   └── admin.html         # Admin panel interface
 ├── assets/

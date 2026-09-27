@@ -522,50 +522,8 @@
       </button>
       <button class="logout-btn" onclick="doLogout()">Sign out</button>
     </div>
-
-    <!-- Demo header: shown only in demo mode -->
-    <div style="display:none;align-items:center;gap:10px" id="header-demo-section">
-      <a href="/demo/exit" style="font-size:12px;font-weight:500;color:var(--muted-fg);text-decoration:none;display:flex;align-items:center;gap:5px;padding:0 6px;transition:color .15s"
-         onmouseover="this.style.color='var(--foreground)'" onmouseout="this.style.color='var(--muted-fg)'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Back to login
-      </a>
-      <button class="theme-toggle-btn" onclick="toggleDarkMode()" aria-label="Toggle dark mode">
-        <svg id="dark-icon-demo" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      </button>
-      <button class="demo-get-access-btn" style="background:#5865F2;color:#fff;height:32px;padding:0 14px;border-radius:8px;font-size:13px;" onclick="showDemoModal()">
-        <span style="display:flex;align-items:center;gap:6px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 0 1-1.872-.878.075.075 0 0 1-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 0 1 .078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 0 1 .079.009c.12.098.245.195.372.288a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/></svg>
-          Get Access
-        </span>
-      </button>
-    </div>
   </div>
 </header>
-
-<!-- Demo banner (shown only in demo mode) -->
-<div class="demo-banner" id="demo-banner" style="display:none">
-  <span>You are in <strong>Preview Mode</strong> — bubble preview is live, all other features require access.</span>
-  <button class="demo-get-access-btn" onclick="showDemoModal()">Get Access</button>
-</div>
-
-<!-- Demo modal -->
-<div id="demo-modal">
-  <div class="demo-modal-box">
-    <div class="demo-modal-icon">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 0 1-1.872-.878.075.075 0 0 1-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 0 1 .078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 0 1 .079.009c.12.098.245.195.372.288a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/></svg>
-    </div>
-    <div class="demo-modal-title">Get Full Access</div>
-    <div class="demo-modal-body">
-      You're in preview mode. Join our Discord to get your access key and unlock TTS audio generation, video export, uploads, and more.
-    </div>
-    <a class="demo-modal-cta" href="https://discord.gg/734KYsP3h7" target="_blank" rel="noopener noreferrer">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 0 1-1.872-.878.075.075 0 0 1-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 0 1 .078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 0 1 .079.009c.12.098.245.195.372.288a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/></svg>
-      Join Discord — Get Access
-    </a>
-    <button class="demo-modal-close" onclick="closeDemoModal()">Continue browsing preview</button>
-  </div>
-</div>
 
 <!-- Voice Assignment Modal -->
 <div id="voice-assign-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:16px">
@@ -632,7 +590,7 @@
       <p><strong>7. Bubble settings</strong> — In the right panel under <em>Bubble design</em> adjust scale, width, corner radius, tail size, colors and sent/received bubble fade. Changes update the preview in real time.</p>
       <p><strong>8. Header settings</strong> — Under <em>Header</em> in the right panel, toggle persistent header, adjust avatar size, and set the battery/signal display. The header contact name comes from the script.</p>
       <p><strong>9. Sponsor overlays</strong> — Three-line blocks for animated overlays. Use <code>rizz</code>, <code>plug</code>, or <code>wing</code> as the first line, then the overlay voice name, then the message line. <strong>rizz</strong> shows the Rizz card overlay, <strong>plug</strong> shows the Plug card, <strong>wing</strong> shows the Wing card — each plays the intro phrase spoken by the given voice, then the message appears in chat with its normal voice.</p>
-      <p><strong>10. ElevenLabs &amp; audio</strong> — Add your API key in the left panel, pick a voice profile, then hit <strong>Generate Audio</strong>. Voice names must match your ElevenLabs account (case-insensitive). Review clips in the Audio tab and regenerate individual lines if needed.</p>
+      <p><strong>10. ElevenLabs &amp; audio</strong> — Pick character voices for your script in the Audio tab, then click <strong>Generate Full Voice Audio</strong>. Audio is synthesized automatically using ElevenLabs configured in your environment (.env). You can review full audio playback in the Audio tab.</p>
       <p><strong>11. Music &amp; gameplay</strong> — Upload background music (mp3/m4a/wav/ogg) and gameplay video (mp4) in the Video settings panel (max 500 MB). Set start time with <code>0:00</code> format. Toggle music fade-out and end fade to black.</p>
       <p><strong>12. Download pictures</strong> — Hit <strong>Download Pics (ZIP)</strong> in the right panel or under the phone preview to download all generated pictures in sequential order (1.jpg, 2.jpg, 3.jpg...) in a single ZIP file.</p>
     </div>
@@ -814,6 +772,30 @@
                 </button>
                 <input type="range" class="cp-seek" id="cp-seek" min="0" max="100" step="0.1" value="0" oninput="cpSeek(this)">
                 <span class="cp-time" id="cp-time">0:00 / 0:00</span>
+              </div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <!-- ── Conversation Gap Controls ── -->
+          <div class="field-group" style="margin-top:4px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div class="label" style="margin-bottom:0;font-weight:600">Sentence & Turn Gaps</div>
+              <span style="font-size:11px;color:var(--muted-fg)">Tight conversational pacing</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="field-group" style="margin-bottom:0">
+                <div class="label" style="display:flex;justify-content:space-between;font-size:11px">
+                  <span>Switch Turn Gap</span>
+                  <span id="val-gap-switch" style="color:var(--muted-fg);font-family:var(--font-mono)">60ms</span>
+                </div>
+                <input type="range" min="0" max="200" step="10" value="60" class="range" id="slider-gap-switch" oninput="document.getElementById('val-gap-switch').textContent = this.value + 'ms'; saveSettings()" />
+              </div>
+              <div class="field-group" style="margin-bottom:0">
+                <div class="label" style="display:flex;justify-content:space-between;font-size:11px">
+                  <span>Same Voice Gap</span>
+                  <span id="val-gap-same" style="color:var(--muted-fg);font-family:var(--font-mono)">30ms</span>
+                </div>
+                <input type="range" min="0" max="200" step="10" value="30" class="range" id="slider-gap-same" oninput="document.getElementById('val-gap-same').textContent = this.value + 'ms'; saveSettings()" />
               </div>
             </div>
           </div>
@@ -1056,7 +1038,7 @@
             <div class="row"><span>Container shadow</span><button id="switch-container-shadow" class="ios-switch" onclick="toggleSwitch(this);refreshPreview()"></button></div>
             <div class="row"><span>Pop-in effect</span><button id="switch-popin" class="ios-switch" onclick="toggleSwitch(this)"></button></div>
             <div style="display:flex;gap:8px">
-              <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:40px;flex:1" onclick="if(IS_DEMO){showDemoModal();return;}document.getElementById('music-file-input').click()">
+              <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:40px;flex:1" onclick="document.getElementById('music-file-input').click()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8a5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Upload music
               </button>
@@ -1088,7 +1070,7 @@
             <div class="row"><span>Gameplay</span><button class="ios-switch" id="switch-gameplay" onclick="toggleSwitch(this);toggleGameplay()"></button></div>
             <div id="gameplay-options" style="display:none;flex-direction:column;gap:16px">
               <div style="display:flex;gap:8px">
-                <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:40px;flex:1" onclick="if(IS_DEMO){showDemoModal();return;}document.getElementById('gameplay-file-input').click()">
+                <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:40px;flex:1" onclick="document.getElementById('gameplay-file-input').click()">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8a5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   Upload gameplay
                 </button>
@@ -1248,7 +1230,7 @@
               <div class="row"><span>Container shadow</span><button id="wa-switch-shadow" class="ios-switch on" onclick="toggleSwitch(this);refreshPreview()"></button></div>
               <div class="row"><span>Pop-in effect</span><button id="wa-switch-popin" class="ios-switch on" onclick="toggleSwitch(this)"></button></div>
               <div style="display:flex;gap:8px;margin-top:4px">
-                <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:40px;flex:1" onclick="if(IS_DEMO){showDemoModal();return;}document.getElementById('music-file-input').click()">
+                <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:40px;flex:1" onclick="document.getElementById('music-file-input').click()">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8a5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   Upload music
                 </button>
@@ -1279,7 +1261,7 @@
               <div class="row"><span>Gameplay</span><button class="ios-switch" id="wa-switch-gameplay" onclick="toggleSwitch(this);toggleWaGameplay()"></button></div>
               <div id="wa-gameplay-options" style="display:none;flex-direction:column;gap:16px">
                 <div style="display:flex;gap:8px">
-                  <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:40px;flex:1" onclick="if(IS_DEMO){showDemoModal();return;}document.getElementById('gameplay-file-input').click()">
+                  <button class="btn btn-secondary" style="font-weight:500;font-size:13px;height:40px;flex:1" onclick="document.getElementById('gameplay-file-input').click()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff8a5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     Upload gameplay
                   </button>
@@ -1336,20 +1318,8 @@
 </main>
 
 <script>
-  // ── Demo mode flag (set by Jinja2) ─────────────────────────────────────────
-  const IS_DEMO = {{ "true" if is_demo else "false" }};
+  const IS_DEMO = false;
   const CROSSFADE_ENABLED = {{ "true" if crossfade_enabled else "false" }};
-
-  function showDemoModal() {
-    document.getElementById('demo-modal').classList.add('open');
-  }
-  function closeDemoModal() {
-    document.getElementById('demo-modal').classList.remove('open');
-  }
-  // Close modal on backdrop click
-  document.getElementById('demo-modal').addEventListener('click', function(e) {
-    if (e.target === this) closeDemoModal();
-  });
 
   function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1372,7 +1342,7 @@
 
   // ── Session info ───────────────────────────────────────────────────────────────
   async function loadMe() {
-    if (IS_DEMO) return;
+
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const urlKey = urlParams.get('key');
@@ -1435,7 +1405,7 @@
   function onVoiceSettingChange() {
     clearTimeout(_voiceSaveTimer);
     _voiceSaveTimer = setTimeout(async () => {
-      if (IS_DEMO) return;
+  
       try {
         await fetch('/api/voice_settings', {
           method: 'POST',
@@ -1452,95 +1422,6 @@
       } catch {}
     }, 800);
   }
-
-  async function fetchQuota() {
-    const el = document.getElementById('el-char-count');
-    if (!el) return;
-    const dot = document.getElementById('el-status-dot');
-    el.textContent = 'Checking…';
-    try {
-      const res = await fetch('/api/eleven_quota');
-      const d = await safeJson(res);
-      el.textContent = d.message;
-      if (dot) dot.style.background = d.ok ? 'var(--success)' : 'var(--destructive)';
-    } catch(e) {
-      el.textContent = 'Error: ' + e.message;
-      if (dot) dot.style.background = 'var(--destructive)';
-    }
-  }
-
-  // ── ElevenLabs profiles ────────────────────────────────────────────────────────
-  async function loadElevenProfiles() {
-    try {
-      const res = await fetch('/api/eleven_profiles');
-      const profiles = await safeJson(res);
-      const sel = document.getElementById('el-profile-select');
-      const current = sel.value;
-      sel.innerHTML = '<option value="">— none —</option>';
-      profiles.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = opt.textContent = p.name;
-        sel.appendChild(opt);
-      });
-      // Restore previously selected, or auto-select the active profile
-      if (current && [...sel.options].some(o => o.value === current)) {
-        sel.value = current;
-      } else {
-        const active = profiles.find(p => p.active);
-        if (active) { sel.value = active.name; fetchQuota(); }
-      }
-    } catch(e) {}
-  }
-
-  async function onProfileSelect(name) {
-    if (!name) return;
-    try {
-      await fetch(`/api/eleven_profiles/${encodeURIComponent(name)}/activate`, { method: 'POST' });
-      fetchQuota();
-    } catch(e) {}
-  }
-
-  async function saveElevenProfile() {
-    const key  = document.getElementById('el-api-key').value.trim();
-    const name = document.getElementById('el-new-profile').value.trim();
-    if (!key)  { setStatus('Paste your ElevenLabs API key first.'); return; }
-    if (!name) { setStatus('Enter a profile name.'); return; }
-    const res = await fetch('/api/eleven_profiles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, key }),
-    });
-    if (res.ok) {
-      await loadElevenProfiles();
-      document.getElementById('el-profile-select').value = name;
-      await onProfileSelect(name);
-      document.getElementById('el-new-profile').value = '';
-      document.getElementById('el-char-count').textContent = 'Profile saved — checking quota…';
-    }
-  }
-
-  async function deleteElevenProfile() {
-    const name = document.getElementById('el-profile-select').value;
-    if (!name) { setStatus('Select a profile to delete.'); return; }
-    await fetch(`/api/eleven_profiles/${encodeURIComponent(name)}`, { method: 'DELETE' });
-    await loadElevenProfiles();
-  }
-
-  // Keep old saveElevenKey for direct key save (no profile name)
-  async function saveElevenKey() {
-    const key = document.getElementById('el-api-key').value.trim();
-    if (!key) return;
-    const res = await fetch('/api/eleven_key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key }),
-    });
-    if (res.ok) {
-      document.getElementById('el-char-count').textContent = 'Saved — checking quota…';
-      fetchQuota();
-    }
-  }
-
   // ── Asset lists (music + gameplay) ────────────────────────────────────────────
   function _populateSelect(selId, files) {
     const sel = document.getElementById(selId);
@@ -1568,7 +1449,7 @@
   }
 
   async function deleteSelectedMedia(type) {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     const isWA = _currentStyle === 'whatsapp';
     const selectId = type === 'music'
       ? (isWA ? 'wa-bg-sound-select' : 'bg-sound-select')
@@ -1587,7 +1468,7 @@
   }
 
   async function uploadMediaFile(input, type) {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     const file = input.files[0];
     if (!file) return;
     const statusId = (_currentStyle === 'whatsapp') ? `wa-${type}-upload-status` : `${type}-upload-status`;
@@ -2228,6 +2109,8 @@
       badge_count:          +(document.getElementById('unread-badge')?.value ?? 0),
       corner_radius:        +(document.getElementById('corner-radius')?.value ?? 35),
       bg_sound_volume:      +(document.getElementById('bg-sound-volume')?.value ?? 0),
+      gap_switch_ms:        +(document.getElementById('slider-gap-switch')?.value ?? 60),
+      gap_same_ms:          +(document.getElementById('slider-gap-same')?.value ?? 30),
     };
   }
 
@@ -2260,6 +2143,8 @@
       gameplay_on:      sw('wa-switch-gameplay'),
       gameplay_file:    document.getElementById('wa-gameplay-select')?.value ?? '',
       gameplay_start:   document.getElementById('wa-gameplay-start')?.value ?? '0:00',
+      gap_switch_ms:    +(document.getElementById('slider-gap-switch')?.value ?? 60),
+      gap_same_ms:      +(document.getElementById('slider-gap-same')?.value ?? 30),
     };
   }
 
@@ -2409,7 +2294,7 @@
   }
 
   async function doGenerateAudio() {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     const script = document.getElementById('script-input').value.trim();
     if (!script) { setStatus('Script is empty.'); return; }
 
@@ -2595,7 +2480,7 @@
   }
 
   async function doGenerateVideo() {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     if (!_audioClips.length) { setStatus('Generate audio first.'); return; }
 
     const btn = document.getElementById(_currentStyle === 'whatsapp' ? 'wa-btn-gen-video' : 'btn-gen-video');
@@ -2755,7 +2640,7 @@
 
   // ── Shorten to 2:59 ────────────────────────────────────────────────────────────
   async function doShortenVideo() {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     if (!_currentVideoToken) { setStatus('Generate video first.'); return; }
     if (_currentVideoDuration > 0 && _currentVideoDuration <= 179) {
       setStatus('Video is already under 2:59.'); return;
@@ -2799,7 +2684,7 @@
   const _SK = 'imsg_settings_v1';
 
   function saveSettings() {
-    if (IS_DEMO) return;
+
     const data = { theme: isDark ? 'dark' : 'light', wa_theme: isWaDark ? 'dark' : 'light', appDark: isAppDark };
     const voicesContent = document.getElementById('voices-content');
     document.querySelectorAll('input[type=range]').forEach(el => {
@@ -2856,7 +2741,7 @@
   }
 
   async function uploadContactPhoto(name) {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -2938,7 +2823,7 @@
   }
 
   async function uploadScriptImage(name) {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -3205,7 +3090,7 @@
 
   // ── New project ────────────────────────────────────────────────────────────────
   async function doNewProject() {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     // Has an active project → save it silently, then show create form
     if (_currentProject) {
       await _autoSaveProject();
@@ -3341,7 +3226,7 @@
   }
 
   async function doContinueWithoutProject() {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     // Save current project first if any
     if (_currentProject) await _autoSaveProject();
     _currentProject = '';
@@ -3352,7 +3237,7 @@
   }
 
   async function doSaveProject() {
-    if (IS_DEMO) { showDemoModal(); return; }
+
     const name = _currentProject || document.getElementById('project-select').value;
     if (!name) {
       document.getElementById('save-as-name').value = '';
@@ -3530,179 +3415,13 @@
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────────
-  if (IS_DEMO) {
-    document.getElementById('demo-banner').style.display = 'flex';
-    document.getElementById('header-user-section').style.display = 'none';
-    document.getElementById('header-demo-section').style.display = 'flex';
-    // Hide ElevenLabs card entirely in demo
-    const elCard = document.querySelector('#el-content')?.closest('.app-card');
-    if (elCard) elCard.style.display = 'none';
-    // Lock script textarea
-    const scriptEl = document.getElementById('script-input');
-    if (scriptEl) {
-      scriptEl.readOnly = true;
-      scriptEl.style.opacity = '0.6';
-      scriptEl.style.cursor = 'default';
-      scriptEl.style.userSelect = 'none';
-    }
-    // Pre-fill demo script
-    if (scriptEl && !scriptEl.value.trim()) {
-      scriptEl.value = `sarah\u{1F495}
-1: natasha> i can't believe mason asked jessica to prom
-2: alex> sarah i'm so sorry..
-1: natasha> i've been dropping hints for weeks luke
-2: alex> his loss honestly
-1: natasha> now i have no date\u0020
-1: natasha> and prom is in 3 days!
-rizz
-alex
-2: alex> You could always go with me you know?
-1: natasha> luke you're gay remember?
-2: alex> so?
-2: alex> we'd have the most fun together
-1: natasha> that's actually perfect
-1: natasha> my gay bestie as my prom date!`;
-    }
-  }
-
   loadSettings();
-  if (IS_DEMO) {
-    // Force dark mode
-    if (!isAppDark) toggleDarkMode();
-    // Force badge number to 67
-    const badgeEl = document.getElementById('unread-badge');
-    if (badgeEl) { badgeEl.value = 67; badgeEl.dispatchEvent(new Event('input')); }
-    // Open gameplay toggle by default
-    const gpSwitch = document.getElementById('switch-gameplay');
-    if (gpSwitch && !gpSwitch.classList.contains('on')) {
-      gpSwitch.classList.add('on');
-      toggleGameplay();
-    }
-  }
   loadMe();
   loadContactPhotoCache().then(() => updatePreview());
-  if (!IS_DEMO) {
-    loadAvailableVoices();
-    loadMusicList();
-    loadGameplayList();
-    loadProjectList();
-  }
-</script>
-
-<!-- ── STUDIO PROMO POPUP ── -->
-<style>
-#studio-popup-overlay{
-  position:fixed;inset:0;z-index:9999;
-  background:rgba(0,0,0,0.45);
-  backdrop-filter:blur(3px);
-  display:flex;align-items:center;justify-content:center;
-  padding:20px;
-  opacity:0;
-  transition:opacity .5s cubic-bezier(0.22,1,0.36,1);
-}
-#studio-popup-overlay.visible{opacity:1;}
-#studio-popup-box{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:36px 32px 28px;
-  max-width:420px;width:100%;
-  position:relative;
-  box-shadow:0 8px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
-  transform:translateY(28px) scale(0.97);
-  opacity:0;
-  transition:transform .6s cubic-bezier(0.22,1,0.36,1), opacity .5s cubic-bezier(0.22,1,0.36,1);
-}
-#studio-popup-overlay.visible #studio-popup-box{transform:translateY(0) scale(1);opacity:1;}
-#studio-popup-close{
-  position:absolute;top:14px;right:16px;
-  background:none;border:none;
-  color:var(--muted-fg);font-size:.9rem;
-  cursor:pointer;line-height:1;padding:4px;
-  border-radius:6px;transition:background .15s,color .15s;
-}
-#studio-popup-close:hover{background:var(--muted);color:var(--foreground);}
-.sp-eyebrow{
-  font-size:.68rem;font-weight:700;
-  letter-spacing:.12em;text-transform:uppercase;
-  color:var(--primary);margin-bottom:12px;
-  display:flex;align-items:center;gap:6px;
-}
-.sp-eyebrow::before{
-  content:'';width:6px;height:6px;border-radius:50%;
-  background:var(--primary);flex-shrink:0;
-}
-.sp-title{
-  font-size:1.35rem;font-weight:700;
-  color:var(--foreground);line-height:1.25;
-  margin-bottom:10px;
-}
-.sp-desc{
-  font-size:.875rem;color:var(--muted-fg);
-  line-height:1.6;margin-bottom:24px;
-}
-.sp-desc strong{color:var(--foreground);}
-.sp-btn{
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  width:100%;height:44px;
-  background:#5865F2;color:#fff;
-  border:none;border-radius:10px;
-  font-size:.85rem;font-weight:700;
-  letter-spacing:.02em;text-decoration:none;
-  cursor:pointer;transition:opacity .15s,transform .1s;
-  box-shadow:0 4px 18px rgba(88,101,242,.3);
-}
-.sp-btn:hover{opacity:.88;}
-.sp-btn:active{transform:scale(.98);}
-.sp-btn svg{flex-shrink:0;}
-.sp-skip{
-  text-align:center;margin-top:12px;
-  font-size:.75rem;color:var(--muted-fg);
-  cursor:pointer;transition:color .15s;
-}
-.sp-skip:hover{color:var(--foreground);}
-</style>
-
-<div id="studio-popup-overlay" style="display:none;">
-  <div id="studio-popup-box">
-    <button id="studio-popup-close" onclick="closeStudioPopup()">✕</button>
-    <div class="sp-eyebrow">Lifetime Access</div>
-    <h2 class="sp-title">Enjoying the preview?<br>Get Unlimited Credits.</h2>
-    <p class="sp-desc">Unlock your key with <strong>Unlimited Credits</strong> — no limits, no depletion. Generate full vertical videos instantly.</p>
-    <a href="https://discord.gg/734KYsP3h7" target="_blank" class="sp-btn">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 0 1-1.872-.878.075.075 0 0 1-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 0 1 .078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 0 1 .079.009c.12.098.245.195.372.288a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/></svg>
-      Join Discord & Claim Access →
-    </a>
-    <p class="sp-skip" onclick="closeStudioPopup()">No thanks, continue preview</p>
-  </div>
-</div>
-
-<script>
-(function(){
-  function showStudioPopup(){
-    const o = document.getElementById('studio-popup-overlay');
-    o.style.display = 'flex';
-    requestAnimationFrame(() => o.classList.add('visible'));
-  }
-  window.closeStudioPopup = function(){
-    const o = document.getElementById('studio-popup-overlay');
-    o.classList.remove('visible');
-    setTimeout(() => o.style.display = 'none', 300);
-    if (IS_DEMO) setTimeout(showStudioPopup, 60000);
-    // In real studio: mark as seen, never show again
-    else { try { localStorage.setItem('imsg_promo_seen', '1'); } catch(e){} }
-  };
-  document.getElementById('studio-popup-overlay').addEventListener('click', function(e){
-    if(e.target === this) window.closeStudioPopup();
-  });
-  if (IS_DEMO) {
-    setTimeout(showStudioPopup, 10000);
-  } else {
-    // Real studio: show once after 5 minutes, only if never seen before
-    try { if (localStorage.getItem('imsg_promo_seen')) return; } catch(e){}
-    setTimeout(showStudioPopup, 300000);
-  }
-})();
+  loadAvailableVoices();
+  loadMusicList();
+  loadGameplayList();
+  loadProjectList();
 </script>
 <script src="/assets/thought-line.js"></script>
 <script>

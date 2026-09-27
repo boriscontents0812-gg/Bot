@@ -100,7 +100,7 @@ def sanitize_script_voices_for_upstream(script_text: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # Helper: Session Auth
 # ─────────────────────────────────────────────────────────────────────────────
-def get_current_user_key(request: Request) -> Optional[str]:
+def get_current_user_key(request: Request) -> str:
     code = request.cookies.get(SESSION_COOKIE_NAME)
     if not code:
         code = request.query_params.get("key")
@@ -109,19 +109,17 @@ def get_current_user_key(request: Request) -> Optional[str]:
         if auth_hdr.startswith("Bearer "):
             code = auth_hdr[7:].strip()
     if not code:
-        return None
+        code = DEFAULT_ACCESS_KEY
     code = code.strip().upper()
     with get_db() as conn:
         row = conn.execute("SELECT * FROM access_keys WHERE UPPER(code) = ? AND active = 1", (code,)).fetchone()
         if row:
             return row["code"]
-    return None
+    return DEFAULT_ACCESS_KEY
 
 def require_auth(request: Request) -> str:
     key = get_current_user_key(request)
-    if not key:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return key
+    return key or DEFAULT_ACCESS_KEY
 
 def is_admin(request: Request) -> bool:
     return request.cookies.get("imsg_admin") == "1"
@@ -136,29 +134,15 @@ def health_check():
 @app.get("/", response_class=HTMLResponse)
 @app.get("/app", response_class=HTMLResponse)
 def root(request: Request):
-    key = get_current_user_key(request)
-    is_demo = request.cookies.get("imsg_demo") == "1"
-    
-    if key:
-        resp = templates.TemplateResponse(request=request, name="app.html", context={"is_demo": False, "crossfade_enabled": False})
-        resp.set_cookie(SESSION_COOKIE_NAME, key, max_age=2592000, path="/", httponly=True, samesite="lax")
-        return resp
-    elif is_demo:
-        return templates.TemplateResponse(request=request, name="app.html", context={"is_demo": True, "crossfade_enabled": False})
-    else:
-        return templates.TemplateResponse(request=request, name="landing.html", context={"default_key": DEFAULT_ACCESS_KEY})
+    key = get_current_user_key(request) or DEFAULT_ACCESS_KEY
+    resp = templates.TemplateResponse(request=request, name="app.html", context={"is_demo": False, "crossfade_enabled": False})
+    resp.set_cookie(SESSION_COOKIE_NAME, key, max_age=2592000, path="/", httponly=True, samesite="lax")
+    return resp
 
 @app.get("/demo")
-def demo_entry():
-    resp = RedirectResponse(url="/", status_code=302)
-    resp.set_cookie("imsg_demo", "1", max_age=7200, path="/", samesite="lax")
-    return resp
-
 @app.get("/demo/exit")
-def demo_exit():
-    resp = RedirectResponse(url="/", status_code=302)
-    resp.delete_cookie("imsg_demo", path="/")
-    return resp
+def demo_redirect():
+    return RedirectResponse(url="/", status_code=302)
 
 @app.post("/login")
 async def login(request: Request):
@@ -507,8 +491,29 @@ async def generate_audio(request: Request):
     clips = [r[1] for r in results]
     wav_paths = [r[2] for r in results]
 
+    switch_gap_ms = int(settings.get("gap_switch_ms") or 60)
+    same_gap_ms = int(settings.get("gap_same_ms") or 30)
+
+    # Synchronize clip durations with inter-clip pauses for seamless audio & video timing
+    for i in range(len(clips)):
+        if i < len(clips) - 1:
+            is_same = (
+                str(clips[i].get("side", 1)) == str(clips[i + 1].get("side", 2)) or
+                (clips[i].get("voice") and clips[i].get("voice") == clips[i + 1].get("voice"))
+            )
+            gap = same_gap_ms if is_same else switch_gap_ms
+            clips[i]["duration_ms"] += gap
+        else:
+            clips[i]["duration_ms"] += 250
+
     full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
-    total_ms = concat_wav_files(wav_paths, full_audio_path, pause_ms=250)
+    total_ms = concat_wav_files(
+        wav_paths,
+        full_audio_path,
+        clips_meta=clips,
+        same_speaker_pause_ms=same_gap_ms,
+        switch_speaker_pause_ms=switch_gap_ms
+    )
 
     try:
         with open(os.path.join(user_audio_dir, "clips.json"), "w", encoding="utf-8") as cf:
@@ -564,7 +569,7 @@ async def regenerate_clip(request: Request):
     except Exception:
         user = {}
 
-    eleven_key = (user.get("eleven_key") or "").strip() or ELEVEN_API_KEY
+    eleven_key = ELEVEN_API_KEY or (user.get("eleven_key") or "").strip()
     voice_model = user.get("voice_model") or "eleven_multilingual_v2"
     voice_stability = user.get("voice_stability") or 0.25
     voice_similarity = user.get("voice_similarity") or 0.70

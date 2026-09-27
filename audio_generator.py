@@ -189,10 +189,105 @@ def convert_audio_to_wav(input_bytes_or_path, output_wav_path, sample_rate=44100
 
     return max(dur_ms, 300)
 
-def concat_wav_files(wav_list, output_filepath, pause_ms=250) -> int:
+def trim_audio_silence(
+    input_wav_path: str,
+    output_wav_path: str = None,
+    lead_pad_ms: int = 20,
+    trail_pad_ms: int = 25,
+    threshold: int = 350
+) -> int:
     """
-    Combines a list of standard stereo WAV clips into a single stereo WAV file with a natural
-    pause between clips. Also creates an accompanying stereo MP3 file for streaming.
+    Trims leading and trailing digital silence/dead air from a WAV file, leaving a natural
+    cushion (lead_pad_ms and trail_pad_ms) with a 5ms smooth fade to prevent clicks.
+    Returns the new duration in milliseconds.
+    """
+    out_path = output_wav_path or input_wav_path
+    if not os.path.exists(input_wav_path) or os.path.getsize(input_wav_path) < 44:
+        return 0
+
+    try:
+        with wave.open(input_wav_path, "rb") as wf:
+            n = wf.getnframes()
+            r = wf.getframerate()
+            ch = wf.getnchannels()
+            sw = wf.getsampwidth()
+            raw = wf.readframes(n)
+    except Exception:
+        return 0
+
+    if n == 0 or sw != 2:
+        return 0
+
+    num_samples = n * ch
+    samples = struct.unpack(f"<{num_samples}h", raw)
+
+    first_frame = None
+    for i in range(n):
+        offset = i * ch
+        if any(abs(samples[offset + c]) > threshold for c in range(ch)):
+            first_frame = i
+            break
+
+    if first_frame is None:
+        return int(round(n * 1000.0 / r))
+
+    last_frame = first_frame
+    for i in range(n - 1, first_frame - 1, -1):
+        offset = i * ch
+        if any(abs(samples[offset + c]) > threshold for c in range(ch)):
+            last_frame = i
+            break
+
+    lead_pad_frames = int(r * (lead_pad_ms / 1000.0))
+    trail_pad_frames = int(r * (trail_pad_ms / 1000.0))
+
+    start_frame = max(0, first_frame - lead_pad_frames)
+    end_frame = min(n, last_frame + trail_pad_frames + 1)
+
+    trimmed_samples = list(samples[start_frame * ch : end_frame * ch])
+    trimmed_frames = len(trimmed_samples) // ch
+
+    # Apply 5ms micro-fade to start and end
+    fade_frames = min(int(r * 0.005), trimmed_frames // 2)
+    for i in range(fade_frames):
+        factor = i / float(fade_frames)
+        for c in range(ch):
+            trimmed_samples[i * ch + c] = int(trimmed_samples[i * ch + c] * factor)
+            end_idx = (trimmed_frames - 1 - i) * ch + c
+            trimmed_samples[end_idx] = int(trimmed_samples[end_idx] * factor)
+
+    temp_out = out_path + ".trim_tmp.wav"
+    try:
+        with wave.open(temp_out, "wb") as out_f:
+            out_f.setnchannels(ch)
+            out_f.setsampwidth(sw)
+            out_f.setframerate(r)
+            out_f.writeframes(struct.pack(f"<{len(trimmed_samples)}h", *trimmed_samples))
+
+        if os.path.exists(out_path) and os.path.abspath(out_path) == os.path.abspath(input_wav_path):
+            os.replace(temp_out, out_path)
+        else:
+            shutil.move(temp_out, out_path)
+    except Exception:
+        if os.path.exists(temp_out):
+            try:
+                os.remove(temp_out)
+            except Exception:
+                pass
+
+    return int(round(trimmed_frames * 1000.0 / r))
+
+def concat_wav_files(
+    wav_list,
+    output_filepath,
+    pause_ms=60,
+    clips_meta=None,
+    same_speaker_pause_ms=30,
+    switch_speaker_pause_ms=60
+) -> int:
+    """
+    Combines a list of standard stereo WAV clips into a single stereo WAV file with tight,
+    natural conversational pauses between clips. Also creates an accompanying stereo MP3 file.
     Returns total duration in milliseconds.
     """
     if not wav_list:
@@ -239,9 +334,25 @@ def concat_wav_files(wav_list, output_filepath, pause_ms=250) -> int:
                 print(f"Notice: skipped corrupted wav {w}: {e}")
                 continue
 
-            if i < len(valid_wavs) - 1 and pause_ms > 0:
-                silence_samples = int(sr * (pause_ms / 1000.0))
-                # Stereo 16-bit: 2 channels * 2 bytes = 4 bytes per frame
+            if i < len(valid_wavs) - 1:
+                if clips_meta and i < len(clips_meta) - 1:
+                    c_cur = clips_meta[i]
+                    c_next = clips_meta[i + 1]
+                    is_same = (
+                        str(c_cur.get('side', 1)) == str(c_next.get('side', 2)) or
+                        (c_cur.get('voice') and c_cur.get('voice') == c_next.get('voice'))
+                    )
+                    p_ms = same_speaker_pause_ms if is_same else switch_speaker_pause_ms
+                else:
+                    p_ms = pause_ms
+
+                if p_ms > 0:
+                    silence_samples = int(sr * (p_ms / 1000.0))
+                    # Stereo 16-bit: 2 channels * 2 bytes = 4 bytes per frame
+                    out_f.writeframes(b'\x00' * (silence_samples * 4))
+            else:
+                # 250ms closing room-tone / breath
+                silence_samples = int(sr * (250 / 1000.0))
                 out_f.writeframes(b'\x00' * (silence_samples * 4))
 
     total_ms = 0
@@ -346,6 +457,7 @@ async def synthesize_clip(
                     if resp.status_code == 200 and len(resp.content) > 200:
                         target_path = output_wav_path or os.path.join(AUDIO_DIR, f"temp_{abs(hash(clean_text))}.wav")
                         dur_ms = convert_audio_to_wav(resp.content, target_path)
+                        dur_ms = trim_audio_silence(target_path, lead_pad_ms=20, trail_pad_ms=25, threshold=350)
                         with open(target_path, "rb") as wf:
                             wav_bytes = wf.read()
                         if not output_wav_path and os.path.exists(target_path):
