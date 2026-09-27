@@ -447,18 +447,19 @@ async def generate_audio(request: Request):
         pass
 
     audio_progress[key] = {"step": 0, "total": len(messages), "label": f"Generating audio for {len(messages)} messages..."}
+    sem = asyncio.Semaphore(2)
 
     async def process_msg(idx, msg):
         clip_path = os.path.join(user_audio_dir, f"clip_{idx}.wav")
         if msg.get("is_img"):
-            dur = 300
-            generate_beep_wav(clip_path, dur, freq=100.0)
+            dur = 350
+            generate_beep_wav(clip_path, dur, freq=120.0)
             return idx, {
                 "duration_ms": dur,
-                "text": msg["text"],
-                "audio_text": msg["text"],
+                "text": msg.get("text", ""),
+                "audio_text": "",
                 "voice": "__img__",
-                "side": msg["side"]
+                "side": msg.get("side", 1)
             }, clip_path, dur
 
         char_name = str(msg.get("name", "")).strip()
@@ -470,17 +471,22 @@ async def generate_audio(request: Request):
             char_name
         )
 
-        raw_bytes, used_real, dur_ms = await synthesize_clip(
-            msg["text"],
-            chosen_voice,
-            eleven_key=eleven_key,
-            model_id=voice_model,
-            stability=voice_stability,
-            similarity=voice_similarity,
-            speed=voice_audio_speed,
-            side=msg.get("side", 1),
-            output_wav_path=clip_path
-        )
+        spoken_text = str(msg.get("audio_text") or msg.get("text", "")).strip()
+        if "==" in spoken_text:
+            spoken_text = spoken_text.split("==", 1)[1].strip()
+
+        async with sem:
+            raw_bytes, used_real, dur_ms = await synthesize_clip(
+                spoken_text,
+                chosen_voice,
+                eleven_key=eleven_key,
+                model_id=voice_model,
+                stability=voice_stability,
+                similarity=voice_similarity,
+                speed=voice_audio_speed,
+                side=msg.get("side", 1),
+                output_wav_path=clip_path
+            )
 
         audio_progress[key] = {
             "step": idx + 1,
@@ -490,10 +496,10 @@ async def generate_audio(request: Request):
 
         return idx, {
             "duration_ms": dur_ms,
-            "text": msg["text"],
-            "audio_text": msg["text"],
+            "text": msg.get("text", ""),
+            "audio_text": spoken_text,
             "voice": chosen_voice,
-            "side": msg["side"]
+            "side": msg.get("side", 1)
         }, clip_path, dur_ms
 
     results = await asyncio.gather(*(process_msg(idx, msg) for idx, msg in enumerate(messages)))

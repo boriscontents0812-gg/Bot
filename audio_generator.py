@@ -127,26 +127,27 @@ async def get_available_voices(eleven_key: str = None) -> list[dict]:
 def generate_beep_wav(filepath, duration_ms, freq=440.0, sample_rate=44100):
     num_samples = int(sample_rate * (duration_ms / 1000.0))
     with wave.open(filepath, 'w') as wav_file:
-        wav_file.setnchannels(1)  # Mono
+        wav_file.setnchannels(2)  # Stereo (2 channels)
         wav_file.setsampwidth(2)  # 16-bit
         wav_file.setframerate(sample_rate)
         
         for i in range(num_samples):
             t = float(i) / sample_rate
-            env = 1.0
             attack = int(sample_rate * 0.05)
             decay = int(sample_rate * 0.05)
             if i < attack:
-                env = float(i) / attack
+                env = float(i) / max(1, attack)
             elif i > num_samples - decay:
-                env = float(num_samples - i) / decay
+                env = float(num_samples - i) / max(1, decay)
+            else:
+                env = 1.0
             value = int(math.sin(2.0 * math.pi * freq * t) * 8000 * env)
-            data = struct.pack('<h', value)
+            data = struct.pack('<hh', value, value)  # Stereo: Left + Right
             wav_file.writeframesraw(data)
 
 def convert_audio_to_wav(input_bytes_or_path, output_wav_path, sample_rate=44100) -> int:
     """
-    Converts any audio (MP3, AAC, PCM, WAV) to standard 16-bit mono 44.1kHz PCM WAV
+    Converts any audio (MP3, AAC, PCM, WAV) to standard 16-bit STEREO 44.1kHz PCM WAV
     using FFmpeg. Returns duration in milliseconds.
     """
     ffmpeg_bin = get_ffmpeg()
@@ -164,7 +165,7 @@ def convert_audio_to_wav(input_bytes_or_path, output_wav_path, sample_rate=44100
         ffmpeg_bin, "-y",
         "-i", src,
         "-ar", str(sample_rate),
-        "-ac", "1",
+        "-ac", "2",  # Stereo (2 channels)
         "-c:a", "pcm_s16le",
         output_wav_path
     ]
@@ -190,8 +191,8 @@ def convert_audio_to_wav(input_bytes_or_path, output_wav_path, sample_rate=44100
 
 def concat_wav_files(wav_list, output_filepath, pause_ms=250) -> int:
     """
-    Combines a list of standard WAV clips into a single WAV file with a natural
-    pause between clips. Also creates an accompanying MP3 file for streaming.
+    Combines a list of standard stereo WAV clips into a single stereo WAV file with a natural
+    pause between clips. Also creates an accompanying stereo MP3 file for streaming.
     Returns total duration in milliseconds.
     """
     if not wav_list:
@@ -203,14 +204,36 @@ def concat_wav_files(wav_list, output_filepath, pause_ms=250) -> int:
 
     sr = 44100
     with wave.open(output_filepath, "wb") as out_f:
-        out_f.setnchannels(1)
-        out_f.setsampwidth(2)
-        out_f.setframerate(sr)
+        out_f.setnchannels(2)      # Stereo (2 channels)
+        out_f.setsampwidth(2)      # 16-bit
+        out_f.setframerate(sr)     # 44.1kHz
 
         for i, w in enumerate(valid_wavs):
             try:
                 with wave.open(w, "rb") as in_f:
+                    nch = in_f.getnchannels()
+                    sw = in_f.getsampwidth()
+                    fr = in_f.getframerate()
                     frames = in_f.readframes(in_f.getnframes())
+
+                    # If mono 16-bit, duplicate samples into stereo 16-bit
+                    if nch == 1 and sw == 2 and fr == sr:
+                        num_samples = len(frames) // 2
+                        mono_samples = struct.unpack(f"<{num_samples}h", frames)
+                        stereo_frames = bytearray(num_samples * 4)
+                        struct.pack_into(f"<{num_samples * 2}h", stereo_frames, 0, *[s for s in mono_samples for _ in (0, 1)])
+                        frames = bytes(stereo_frames)
+                    elif nch != 2 or sw != 2 or fr != sr:
+                        temp_fixed = w + ".stereo_fix.wav"
+                        convert_audio_to_wav(w, temp_fixed, sample_rate=sr)
+                        with wave.open(temp_fixed, "rb") as fix_f:
+                            frames = fix_f.readframes(fix_f.getnframes())
+                        if os.path.exists(temp_fixed):
+                            try:
+                                os.remove(temp_fixed)
+                            except Exception:
+                                pass
+
                     out_f.writeframes(frames)
             except Exception as e:
                 print(f"Notice: skipped corrupted wav {w}: {e}")
@@ -218,7 +241,8 @@ def concat_wav_files(wav_list, output_filepath, pause_ms=250) -> int:
 
             if i < len(valid_wavs) - 1 and pause_ms > 0:
                 silence_samples = int(sr * (pause_ms / 1000.0))
-                out_f.writeframes(b'\x00' * (silence_samples * 2))
+                # Stereo 16-bit: 2 channels * 2 bytes = 4 bytes per frame
+                out_f.writeframes(b'\x00' * (silence_samples * 4))
 
     total_ms = 0
     if os.path.exists(output_filepath):
@@ -232,7 +256,7 @@ def concat_wav_files(wav_list, output_filepath, pause_ms=250) -> int:
             mp3_path = os.path.splitext(output_filepath)[0] + ".mp3"
             ffmpeg_bin = get_ffmpeg()
             subprocess.run(
-                [ffmpeg_bin, "-y", "-i", output_filepath, "-c:a", "libmp3lame", "-q:a", "2", mp3_path],
+                [ffmpeg_bin, "-y", "-i", output_filepath, "-c:a", "libmp3lame", "-ac", "2", "-b:a", "192k", mp3_path],
                 check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
         except Exception:
@@ -274,50 +298,80 @@ async def synthesize_clip(
     output_wav_path: str = None
 ) -> tuple[bytes, bool, int]:
     """
-    Synthesizes a single line of text with ElevenLabs TTS, converts output to standard WAV,
+    Synthesizes a single line of text with ElevenLabs TTS, converts output to standard STEREO WAV,
     and returns (wav_bytes, is_real, duration_ms).
+    Includes automatic retry on 429 rate limit errors to ensure no lines are dropped.
     """
+    import asyncio
     eleven_key = (eleven_key or "").strip() or ELEVEN_API_KEY or os.environ.get("ELEVEN_API_KEY", "")
     voice_id = resolve_voice_id(voice_id_or_name, side=side)
 
-    # 1. Real ElevenLabs TTS API
-    if eleven_key and len(eleven_key) > 10:
-        try:
-            url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-            headers = {
-                "xi-api-key": eleven_key,
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "text": text,
-                "model_id": model_id,
-                "voice_settings": {
-                    "stability": float(stability),
-                    "similarity_boost": float(similarity),
-                    "speed": float(speed)
-                }
-            }
-            async with httpx.AsyncClient(timeout=25.0) as client:
-                resp = await client.post(url, json=payload, headers=headers)
-                if resp.status_code == 200 and len(resp.content) > 200:
-                    target_path = output_wav_path or os.path.join(AUDIO_DIR, f"temp_{abs(hash(text))}.wav")
-                    dur_ms = convert_audio_to_wav(resp.content, target_path)
-                    with open(target_path, "rb") as wf:
-                        wav_bytes = wf.read()
-                    if not output_wav_path and os.path.exists(target_path):
-                        os.remove(target_path)
-                    return wav_bytes, True, dur_ms
-                else:
-                    print(f"Notice: ElevenLabs TTS returned status {resp.status_code}: {resp.text[:200]}")
-        except Exception as e:
-            print(f"Notice: ElevenLabs TTS request failed: {e}")
+    # Clean text to synthesize (split display == spoken if present)
+    clean_text = str(text or "").strip()
+    if "==" in clean_text:
+        clean_text = clean_text.split("==", 1)[1].strip()
 
-    # 2. Offline fallback synthetic audio
-    word_count = len(text.split())
+    if not clean_text:
+        dur_ms = 350
+        target_path = output_wav_path or os.path.join(AUDIO_DIR, f"temp_empty_{int(time.time()*1000)}.wav")
+        generate_beep_wav(target_path, dur_ms, freq=100)
+        with open(target_path, "rb") as wf:
+            wav_bytes = wf.read()
+        if not output_wav_path and os.path.exists(target_path):
+            os.remove(target_path)
+        return wav_bytes, False, dur_ms
+
+    # 1. Real ElevenLabs TTS API with retry on 429 / network glitch
+    if eleven_key and len(eleven_key) > 10:
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        headers = {
+            "xi-api-key": eleven_key,
+            "Content-Type": "application/json",
+            "Accept": "audio/mpeg"
+        }
+        payload = {
+            "text": clean_text,
+            "model_id": model_id,
+            "voice_settings": {
+                "stability": float(stability),
+                "similarity_boost": float(similarity),
+                "speed": float(speed)
+            }
+        }
+
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.post(url, json=payload, headers=headers)
+                    if resp.status_code == 200 and len(resp.content) > 200:
+                        target_path = output_wav_path or os.path.join(AUDIO_DIR, f"temp_{abs(hash(clean_text))}.wav")
+                        dur_ms = convert_audio_to_wav(resp.content, target_path)
+                        with open(target_path, "rb") as wf:
+                            wav_bytes = wf.read()
+                        if not output_wav_path and os.path.exists(target_path):
+                            os.remove(target_path)
+                        return wav_bytes, True, dur_ms
+                    elif resp.status_code == 429:
+                        wait_sec = 1.5 * (attempt + 1)
+                        print(f"Notice: ElevenLabs 429 rate limit, waiting {wait_sec}s before retry ({attempt+1}/3)...")
+                        await asyncio.sleep(wait_sec)
+                        continue
+                    elif resp.status_code >= 500:
+                        await asyncio.sleep(1.0)
+                        continue
+                    else:
+                        print(f"Notice: ElevenLabs TTS returned status {resp.status_code}: {resp.text[:200]}")
+                        break
+            except Exception as e:
+                print(f"Notice: ElevenLabs TTS attempt {attempt+1} failed: {e}")
+                await asyncio.sleep(1.0)
+
+    # 2. Offline fallback synthetic stereo audio
+    word_count = len(clean_text.split())
     dur_ms = max(600, int(400 + word_count * 320 / max(0.5, speed)))
     freq = 220 + (abs(hash(voice_id_or_name)) % 300)
 
-    target_path = output_wav_path or os.path.join(AUDIO_DIR, f"temp_synth_{abs(hash(text))}.wav")
+    target_path = output_wav_path or os.path.join(AUDIO_DIR, f"temp_synth_{abs(hash(clean_text))}.wav")
     generate_beep_wav(target_path, dur_ms, freq=freq)
     with open(target_path, "rb") as wf:
         wav_bytes = wf.read()

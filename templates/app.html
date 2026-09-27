@@ -1643,36 +1643,145 @@
 
   // ── Script parser ──────────────────────────────────────────────────────────────
   function parseScript(text) {
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (!text) return { messages: [], contacts: [] };
+    const rawLines = text.split(/\r?\n/);
     const messages = [];
-    // contacts = group names (non-message lines, same logic as Python parser)
-    // These are the keys used for contact_photo_map in the backend
     const contacts = [];
     const contactsSeen = new Set();
-    const skipKeywords = new Set(['wing', 'rizz', 'plug']);
-    let pendingWing = false, pendingRizz = false, pendingPlug = false;
+    let contactName = 'Contact';
+    let firstNonMsg = true;
+    let lastSide = 1;
+    let lastName = '';
+    let skipNext = false;
 
-    for (const line of lines) {
-      const isMsg = /^[12]:\s*/i.test(line);
+    for (const rawLine of rawLines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      if (/^---\s*$/.test(line)) continue;
+
       const lower = line.toLowerCase();
-
-      if (/^---\s*$/.test(line)) continue;  // group separator, not a contact name
-      if (lower === 'wing' || lower === 'wing (bot)') { pendingWing = true; pendingRizz = false; pendingPlug = false; continue; }
-      if (lower === 'rizz') { pendingRizz = true; pendingWing = false; pendingPlug = false; continue; }
-      if (lower === 'plug') { pendingPlug = true; pendingWing = false; pendingRizz = false; continue; }
-
-      if (isMsg) {
-        const m = line.match(/^(1|2):\s*([^>]+?)\s*>\s*(.+)$/);
-        if (m) messages.push({ side: m[1], name: m[2].trim(), text: m[3].trim() });
-        pendingWing = false; pendingRizz = false; pendingPlug = false;
-      } else {
-        // Non-message line: if wing/rizz/plug pending it's a voice name, skip
-        if (pendingWing || pendingRizz || pendingPlug) { pendingWing = false; pendingRizz = false; pendingPlug = false; continue; }
-        // Otherwise it's a group/contact name
-        if (!contactsSeen.has(line)) { contactsSeen.add(line); contacts.push(line); }
+      if (lower === 'wing' || lower === 'wing (bot)' || lower === 'rizz' || lower === 'plug') {
+        skipNext = true;
+        continue;
       }
+      if (skipNext) {
+        skipNext = false;
+        if (!/^\[?[12]\]?[:\.\-\>]/.test(line) && !line.includes(':') && !line.includes('>')) {
+          continue;
+        }
+      }
+
+      // 1. Image message: e.g. "1: img: photo.jpg" or "img: photo.jpg"
+      const imgM = line.match(/^(?:\[?([12])\]?[:\.\-\>]\s*)?img:\s*(.+)$/i);
+      if (imgM) {
+        const side = parseInt(imgM[1] || lastSide || 1, 10);
+        messages.push({ side, name: '', text: imgM[2].trim(), audio_text: '', is_img: true });
+        lastSide = side;
+        firstNonMsg = false;
+        continue;
+      }
+
+      // 2. Explicit side prefix: 1: Name > Text, 1: Name: Text, 1: Text, 1. Name > Text, etc.
+      const sidePrefixM = line.match(/^\[?([12])\]?[:\.\-\>]\s*(.*)$/);
+      if (sidePrefixM) {
+        const side = parseInt(sidePrefixM[1], 10);
+        const remainder = sidePrefixM[2].trim();
+        firstNonMsg = false;
+
+        let name = '';
+        let content = remainder;
+        const sepM = remainder.match(/^([^:\>\-]+?)\s*[:\>\-]\s*(.+)$/);
+        if (sepM) {
+          name = sepM[1].trim();
+          content = sepM[2].trim();
+        } else {
+          name = (side === lastSide && lastName) ? lastName : (side === 1 ? contactName : 'Character 2');
+        }
+
+        let dispText = content;
+        let audText = content;
+        if (content.includes('==')) {
+          const parts = content.split('==');
+          dispText = parts[0].trim();
+          audText = parts.slice(1).join('==').trim();
+        }
+
+        messages.push({ side, name, text: dispText, audio_text: audText, is_img: false });
+        lastSide = side;
+        lastName = name;
+        if (name && !contactsSeen.has(name)) {
+          contactsSeen.add(name);
+          contacts.push(name);
+        }
+        continue;
+      }
+
+      // 3. Name: Text or Name > Text (without 1: or 2:)
+      const namedMsgM = line.match(/^([^:\>]+?)\s*[:\>]\s*(.+)$/);
+      if (namedMsgM) {
+        const nameCand = namedMsgM[1].trim();
+        const content = namedMsgM[2].trim();
+        if (firstNonMsg) {
+          contactName = nameCand;
+          firstNonMsg = false;
+        }
+        let side = 1;
+        if (nameCand.toLowerCase() === contactName.toLowerCase()) {
+          side = 1;
+        } else if (contactsSeen.has(nameCand)) {
+          const arr = Array.from(contactsSeen);
+          side = (arr.indexOf(nameCand) % 2 === 0) ? 1 : 2;
+        } else {
+          side = (lastSide === 1) ? 2 : 1;
+        }
+
+        let dispText = content;
+        let audText = content;
+        if (content.includes('==')) {
+          const parts = content.split('==');
+          dispText = parts[0].trim();
+          audText = parts.slice(1).join('==').trim();
+        }
+
+        messages.push({ side, name: nameCand, text: dispText, audio_text: audText, is_img: false });
+        lastSide = side;
+        lastName = nameCand;
+        if (!contactsSeen.has(nameCand)) {
+          contactsSeen.add(nameCand);
+          contacts.push(nameCand);
+        }
+        continue;
+      }
+
+      // 4. First non-message line = Contact name
+      if (firstNonMsg) {
+        contactName = line;
+        firstNonMsg = false;
+        if (!contactsSeen.has(line)) {
+          contactsSeen.add(line);
+          contacts.push(line);
+        }
+        continue;
+      }
+
+      // 5. Continuation message without prefix
+      let dispText = line;
+      let audText = line;
+      if (line.includes('==')) {
+        const parts = line.split('==');
+        dispText = parts[0].trim();
+        audText = parts.slice(1).join('==').trim();
+      }
+      messages.push({
+        side: lastSide,
+        name: lastName || (lastSide === 1 ? contactName : 'Character 2'),
+        text: dispText,
+        audio_text: audText,
+        is_img: false
+      });
     }
-    return { messages, contacts };
+
+    return { messages, contacts, contactName };
   }
 
   // ── Settings snapshot ─────────────────────────────────────────────────────────

@@ -32,17 +32,19 @@ def run_tests():
     v_names = [v["name"] for v in voices]
     print(f"Sample voices: {v_names[:5]}")
 
-    print("\n--- 2. Testing POST /api/generate_audio with Natasha & Adam ---")
+    print("\n--- 2. Testing POST /api/generate_audio with various line formats ---")
     script = (
-        "Natasha\n"
+        "Natasha 💕\n"
         "1: Natasha > Hey Adam! Did you see the new update?\n"
-        "2: Adam > Yeah Natasha, it looks amazing! The voices are completely customized now.\n"
-        "1: Natasha > That is incredible! Can it handle long conversations too?\n"
-        "2: Adam > Yes, it generates the full transcript seamlessly without cutting off!"
+        "2: Adam: Yeah Natasha, it looks amazing!\n"
+        "1: Did you hear about that?\n"
+        "And it supports continuation lines without prefixes too!\n"
+        "2: Adam > Yes == Absolutely, it generates the full transcript in stereo!"
     )
     voice_map = {
         "Natasha": "EXAVITQu4vr4xnSDxMaL", # Sarah / Natasha
-        "Adam": "pNInz6obpgDQGcFmaJgB"     # Adam
+        "Adam": "pNInz6obpgDQGcFmaJgB",    # Adam
+        "Natasha 💕": "EXAVITQu4vr4xnSDxMaL"
     }
 
     payload = {
@@ -63,13 +65,13 @@ def run_tests():
     clips = audio_data.get("clips", [])
     total_ms = audio_data.get("total_ms", 0)
     print(f"Generated {len(clips)} clips with total duration: {total_ms / 1000.0:.2f}s")
-    assert len(clips) == 4, f"Expected 4 clips, got {len(clips)}"
-    assert total_ms > 6000, f"Expected full duration > 6s, got {total_ms}ms"
+    assert len(clips) == 5, f"Expected 5 clips, got {len(clips)}"
+    assert total_ms > 8000, f"Expected full duration > 8s, got {total_ms}ms"
 
     for i, c in enumerate(clips):
-        print(f" - Clip {i+1} ({c['voice']}): {c['duration_ms']}ms -> {c['text'][:40]}...")
+        print(f" - Clip {i+1} ({c['voice']}): {c['duration_ms']}ms -> {c['text'][:40]}... (audio: {c.get('audio_text', '')[:30]})")
 
-    print("\n--- 3. Verifying audio_full.wav file integrity ---")
+    print("\n--- 3. Verifying audio_full.wav stereo file integrity ---")
     user_audio_dir = os.path.join(config.DATA_DIR, "audio", config.DEFAULT_ACCESS_KEY)
     full_wav = os.path.join(user_audio_dir, "audio_full.wav")
     assert os.path.exists(full_wav), "audio_full.wav does not exist!"
@@ -79,8 +81,9 @@ def run_tests():
         channels = wf.getnchannels()
         sampwidth = wf.getsampwidth()
         wav_dur = nframes / framerate
-        print(f"audio_full.wav: {wav_dur:.2f}s, {channels}ch, {framerate}Hz, {sampwidth*8}-bit PCM")
-        assert wav_dur > 6.0, f"audio_full.wav duration too short: {wav_dur}s"
+        print(f"audio_full.wav: {wav_dur:.2f}s, {channels}ch (STEREO), {framerate}Hz, {sampwidth*8}-bit PCM")
+        assert channels == 2, f"Expected 2 channels (Stereo), got {channels}"
+        assert wav_dur > 8.0, f"audio_full.wav duration too short: {wav_dur}s"
 
     print("\n--- 4. Testing GET /api/audio_full endpoint ---")
     full_resp = client.get("/api/audio_full", cookies={config.SESSION_COOKIE_NAME: cookie})
@@ -88,7 +91,7 @@ def run_tests():
     print(f"GET /api/audio_full returned: {len(full_resp.content)} bytes, Content-Type: {full_resp.headers.get('content-type')}")
     assert len(full_resp.content) > 50000, "audio_full content too small"
 
-    print("\nALL AUDIO & VOICE TESTS PASSED SUCCESSFULLY!")
+    print("\nALL STEREO AUDIO & VOICE SCRIPT TESTS PASSED SUCCESSFULLY!")
 
 if __name__ == "__main__":
     run_tests()

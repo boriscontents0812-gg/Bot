@@ -111,39 +111,143 @@ def draw_text_with_emojis(draw, xy, text, font_reg, font_emj, fill):
     return x
 
 def parse_script(text):
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    if not text:
+        return "Contact", [], []
+
+    raw_lines = text.splitlines()
     messages = []
     contact_name = "Contact"
     contacts_seen = []
     
     first_non_msg = True
-    for line in lines:
+    last_side = 1
+    last_name = ""
+    skip_next = False
+
+    for raw_line in raw_lines:
+        line = raw_line.strip()
+        if not line:
+            continue
+
         if line.startswith('---'):
             continue
-        is_msg = re.match(r'^[12]:\s*', line, re.IGNORECASE)
-        if is_msg:
-            img_m = re.match(r'^(1|2):\s*img:\s*(.+)$', line, re.IGNORECASE)
-            if img_m:
-                side = int(img_m.group(1))
-                img_name = img_m.group(2).strip()
-                messages.append({'side': side, 'name': '', 'text': img_name, 'is_img': True})
+
+        lower = line.lower()
+        if lower in ('wing', 'rizz', 'plug', 'wing (bot)'):
+            skip_next = True
+            continue
+
+        if skip_next:
+            skip_next = False
+            # If this line was just a keyword/voice name like 'alex', skip it
+            if not re.match(r'^\[?[12]\]?[:\.\-\>]', line) and ':' not in line and '>' not in line:
+                continue
+
+        # 1. Image message check: e.g. "1: img: photo1.jpg" or "img: photo1.jpg"
+        img_match = re.match(r'^(?:\[?([12])\]?[:\.\-\>]\s*)?img:\s*(.+)$', line, re.IGNORECASE)
+        if img_match:
+            side = int(img_match.group(1) or last_side or 1)
+            img_name = img_match.group(2).strip()
+            messages.append({'side': side, 'name': '', 'text': img_name, 'audio_text': '', 'is_img': True})
+            last_side = side
+            first_non_msg = False
+            continue
+
+        # 2. Check for message with explicit side prefix:
+        # e.g. "1: Natasha > Hello", "1: Natasha: Hello", "1: Natasha - Hello", "1. Natasha > Hello", "1> Hello", "1: Hello", "[1] Natasha: Hello"
+        side_prefix_m = re.match(r'^\[?([12])\]?[:\.\-\>]\s*(.*)$', line)
+        if side_prefix_m:
+            side = int(side_prefix_m.group(1))
+            remainder = side_prefix_m.group(2).strip()
+            first_non_msg = False
+
+            # Check if remainder contains "Name > Text" or "Name: Text" or "Name - Text"
+            sep_m = re.match(r'^([^:\>\-]+?)\s*[:\>\-]\s*(.+)$', remainder)
+            if sep_m:
+                name = sep_m.group(1).strip()
+                content = sep_m.group(2).strip()
             else:
-                m = re.match(r'^(1|2):\s*([^>]+?)\s*>\s*(.+)$', line)
-                if m:
-                    side = int(m.group(1))
-                    name = m.group(2).strip()
-                    msg_text = m.group(3).strip()
-                    messages.append({'side': side, 'name': name, 'text': msg_text, 'is_img': False})
-                    if name not in contacts_seen:
-                        contacts_seen.append(name)
-        else:
-            clean = re.sub(r'[^\w\s\u0080-\uffff]', '', line).strip()
-            if first_non_msg and not any(kw in line.lower() for kw in ['wing', 'rizz', 'plug']):
-                contact_name = line
+                # No name separator, remainder is the message text directly
+                content = remainder
+                name = last_name if (side == last_side and last_name) else (contact_name if side == 1 else "Character 2")
+
+            # Check for display text vs spoken text: "Display == Spoken"
+            if "==" in content:
+                parts = content.split("==", 1)
+                disp_text = parts[0].strip()
+                aud_text = parts[1].strip()
+            else:
+                disp_text = content
+                aud_text = content
+
+            messages.append({'side': side, 'name': name, 'text': disp_text, 'audio_text': aud_text, 'is_img': False})
+            last_side = side
+            last_name = name
+            if name and name not in contacts_seen:
+                contacts_seen.append(name)
+            continue
+
+        # 3. Check for message without side prefix, but with "Name: Text" or "Name > Text"
+        # e.g. "Natasha: Hello" or "Adam > How are you?"
+        named_msg_m = re.match(r'^([^:\>]+?)\s*[:\>]\s*(.+)$', line)
+        if named_msg_m:
+            name_cand = named_msg_m.group(1).strip()
+            content = named_msg_m.group(2).strip()
+
+            if first_non_msg:
+                contact_name = name_cand
                 first_non_msg = False
-            if line not in contacts_seen and not any(kw in line.lower() for kw in ['wing', 'rizz', 'plug']):
+
+            if name_cand.lower() == contact_name.lower():
+                side = 1
+            elif name_cand in contacts_seen:
+                side = 1 if contacts_seen.index(name_cand) % 2 == 0 else 2
+            else:
+                side = 2 if last_side == 1 else 1
+
+            if "==" in content:
+                parts = content.split("==", 1)
+                disp_text = parts[0].strip()
+                aud_text = parts[1].strip()
+            else:
+                disp_text = content
+                aud_text = content
+
+            messages.append({'side': side, 'name': name_cand, 'text': disp_text, 'audio_text': aud_text, 'is_img': False})
+            last_side = side
+            last_name = name_cand
+            if name_cand not in contacts_seen:
+                contacts_seen.append(name_cand)
+            continue
+
+        # 4. If we haven't seen any messages yet:
+        # First non-message line is the Contact Name (header at the top of chat)
+        if first_non_msg:
+            contact_name = line
+            first_non_msg = False
+            if line not in contacts_seen:
                 contacts_seen.append(line)
-                
+            continue
+
+        # 5. Non-prefixed line after messages have started:
+        # It is a continuation message from the same side / speaker!
+        content = line
+        if "==" in content:
+            parts = content.split("==", 1)
+            disp_text = parts[0].strip()
+            aud_text = parts[1].strip()
+        else:
+            disp_text = content
+            aud_text = content
+
+        messages.append({
+            'side': last_side,
+            'name': last_name or (contact_name if last_side == 1 else "Character 2"),
+            'text': disp_text,
+            'audio_text': aud_text,
+            'is_img': False
+        })
+
     return contact_name, messages, contacts_seen
 
 def draw_video_icon(draw, x, y, size=18, color=(0, 122, 255)):
