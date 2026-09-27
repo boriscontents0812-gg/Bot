@@ -602,7 +602,7 @@
       <p><strong>9. Sponsor overlays</strong> — Three-line blocks for animated overlays. Use <code>rizz</code>, <code>plug</code>, or <code>wing</code> as the first line, then the overlay voice name, then the message line. <strong>rizz</strong> shows the Rizz card overlay, <strong>plug</strong> shows the Plug card, <strong>wing</strong> shows the Wing card — each plays the intro phrase spoken by the given voice, then the message appears in chat with its normal voice.</p>
       <p><strong>10. ElevenLabs &amp; audio</strong> — Add your API key in the left panel, pick a voice profile, then hit <strong>Generate Audio</strong>. Voice names must match your ElevenLabs account (case-insensitive). Review clips in the Audio tab and regenerate individual lines if needed.</p>
       <p><strong>11. Music &amp; gameplay</strong> — Upload background music (mp3/m4a/wav/ogg) and gameplay video (mp4) in the Video settings panel (max 500 MB). Set start time with <code>0:00</code> format. Toggle music fade-out and end fade to black.</p>
-      <p><strong>12. Generate video</strong> — Hit <strong>Generate Video</strong> in the right panel. If it exceeds 2:59, use <strong>Shorten to 2:59</strong> to auto-compress to exactly 2:59. Download from the Video tab.</p>
+      <p><strong>12. Download pictures</strong> — Hit <strong>Download Pics (ZIP)</strong> in the right panel or under the phone preview to download all generated pictures in sequential order (1.jpg, 2.jpg, 3.jpg...) in a single ZIP file.</p>
     </div>
   </div>
 
@@ -2399,7 +2399,7 @@
   function _switchToVideoTab() {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-    const videoBtn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.trim() === 'video');
+    const videoBtn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.trim() === 'pics' || b.textContent.trim() === 'video');
     if (videoBtn) videoBtn.classList.add('active');
     document.getElementById('panel-video').classList.remove('hidden');
   }

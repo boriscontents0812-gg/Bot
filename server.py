@@ -162,8 +162,19 @@ def demo_exit():
 
 @app.post("/login")
 async def login(request: Request):
-    data = await request.json()
-    code = data.get("code", "").strip().upper()
+    content_type = request.headers.get("content-type", "")
+    if "json" in content_type:
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+    else:
+        try:
+            form = await request.form()
+            data = dict(form)
+        except Exception:
+            data = {}
+    code = (data.get("code") or data.get("key") or "").strip().upper()
     with get_db() as conn:
         row = conn.execute("SELECT * FROM access_keys WHERE UPPER(code) = ?", (code,)).fetchone()
         if not row:
@@ -277,6 +288,12 @@ async def save_voice_settings(request: Request):
 # ─────────────────────────────────────────────────────────────────────────────
 async def render_page_preview(body: dict, page: int, key: str) -> tuple[bytes, int]:
     body_page = body.copy()
+    if isinstance(body_page.get("settings"), dict):
+        for k, v in body_page["settings"].items():
+            if k not in body_page:
+                body_page[k] = v
+    if "app_type" in body_page and "style" not in body_page:
+        body_page["style"] = body_page["app_type"]
     body_page["page"] = page
     try:
         async with httpx.AsyncClient(timeout=6.0) as client:
@@ -341,7 +358,8 @@ async def download_pics_zip(request: Request):
         rendered_pics.append((p + 1, img_p))
 
     # 3. Setup paths for local saving and zip archive
-    project_name = body.get("project") or "conversation"
+    settings_dict = body.get("settings", {}) if isinstance(body.get("settings"), dict) else {}
+    project_name = body.get("project") or body.get("project_name") or settings_dict.get("project_name") or "conversation"
     safe_project = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(project_name)).strip('_') or "conversation"
 
     user_downloads_dir = os.path.join(DATA_DIR, "downloads", key)

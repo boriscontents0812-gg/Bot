@@ -451,21 +451,22 @@ def render_chat_frame(messages, visible_count, contact_name="Contact", badge_cou
     return canvas
 
 def render_preview_image(body):
-    style = body.get('style', 'ios')
+    settings = body.get('settings', {}) if isinstance(body.get('settings'), dict) else {}
+    style = body.get('style') or settings.get('app_type') or settings.get('style') or 'ios'
     script_text = body.get('script', '')
     page = int(body.get('page', 0))
     contact_name, messages, contacts = parse_script(script_text)
 
     W, H = 540, 960
-    msgs_per_page = int(body.get('msgs_per_page', 6))
+    msgs_per_page = int(body.get('msgs_per_page') or settings.get('msgs_per_page') or 6)
     if msgs_per_page < 1:
         msgs_per_page = 6
     total_pages = max(1, math.ceil(len(messages) / msgs_per_page))
     page = max(0, min(page, total_pages - 1))
     
     page_msgs = messages[page * msgs_per_page : (page + 1) * msgs_per_page]
-    theme = body.get('theme', 'light') if style == 'ios' else body.get('wa_theme', 'light')
-    badge_count = int(body.get('badge_count', 0))
+    theme = (body.get('theme') or settings.get('theme') or 'light') if style == 'ios' else (body.get('wa_theme') or settings.get('wa_theme') or 'light')
+    badge_count = int(body.get('badge_count') or settings.get('badge_count') or 0)
 
     canvas = render_chat_frame(
         page_msgs,
