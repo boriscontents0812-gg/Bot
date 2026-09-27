@@ -148,17 +148,26 @@ def parse_script(text):
         if img_match:
             side = int(img_match.group(1) or last_side or 1)
             img_name = img_match.group(2).strip()
-            messages.append({'side': side, 'name': '', 'text': img_name, 'audio_text': '', 'is_img': True})
+            messages.append({
+                'side': side,
+                'name': '',
+                'text': img_name,
+                'audio_text': '',
+                'is_img': True,
+                'contact_name': contact_name
+            })
             last_side = side
             first_non_msg = False
             continue
 
-        # 2. Check for message with explicit side prefix:
-        # e.g. "1: Natasha > Hello", "1: Natasha: Hello", "1: Natasha - Hello", "1. Natasha > Hello", "1> Hello", "1: Hello", "[1] Natasha: Hello"
+        # 2. Actual conversation message: must start with side number (1 or 2)
+        # e.g. "1: Natasha > Hello", "2: Adam > Yeah", "1: Natasha: Hello", "1. Natasha > Hello", "[1] Natasha > Hello", "1: Hello"
         side_prefix_m = re.match(r'^\[?([12])\]?[:\.\-\>]\s*(.*)$', line)
         if side_prefix_m:
             side = int(side_prefix_m.group(1))
             remainder = side_prefix_m.group(2).strip()
+            if not remainder:
+                continue
             first_non_msg = False
 
             # Check if remainder contains "Name > Text" or "Name: Text" or "Name - Text"
@@ -180,73 +189,27 @@ def parse_script(text):
                 disp_text = content
                 aud_text = content
 
-            messages.append({'side': side, 'name': name, 'text': disp_text, 'audio_text': aud_text, 'is_img': False})
+            messages.append({
+                'side': side,
+                'name': name,
+                'text': disp_text,
+                'audio_text': aud_text,
+                'is_img': False,
+                'contact_name': contact_name
+            })
             last_side = side
             last_name = name
             if name and name not in contacts_seen:
                 contacts_seen.append(name)
             continue
 
-        # 3. Check for message without side prefix, but with "Name: Text" or "Name > Text"
-        # e.g. "Natasha: Hello" or "Adam > How are you?"
-        named_msg_m = re.match(r'^([^:\>]+?)\s*[:\>]\s*(.+)$', line)
-        if named_msg_m:
-            name_cand = named_msg_m.group(1).strip()
-            content = named_msg_m.group(2).strip()
-
-            if first_non_msg:
-                contact_name = name_cand
-                first_non_msg = False
-
-            if name_cand.lower() == contact_name.lower():
-                side = 1
-            elif name_cand in contacts_seen:
-                side = 1 if contacts_seen.index(name_cand) % 2 == 0 else 2
-            else:
-                side = 2 if last_side == 1 else 1
-
-            if "==" in content:
-                parts = content.split("==", 1)
-                disp_text = parts[0].strip()
-                aud_text = parts[1].strip()
-            else:
-                disp_text = content
-                aud_text = content
-
-            messages.append({'side': side, 'name': name_cand, 'text': disp_text, 'audio_text': aud_text, 'is_img': False})
-            last_side = side
-            last_name = name_cand
-            if name_cand not in contacts_seen:
-                contacts_seen.append(name_cand)
-            continue
-
-        # 4. If we haven't seen any messages yet:
-        # First non-message line is the Contact Name (header at the top of chat)
-        if first_non_msg:
-            contact_name = line
-            first_non_msg = False
-            if line not in contacts_seen:
-                contacts_seen.append(line)
-            continue
-
-        # 5. Non-prefixed line after messages have started:
-        # It is a continuation message from the same side / speaker!
-        content = line
-        if "==" in content:
-            parts = content.split("==", 1)
-            disp_text = parts[0].strip()
-            aud_text = parts[1].strip()
-        else:
-            disp_text = content
-            aud_text = content
-
-        messages.append({
-            'side': last_side,
-            'name': last_name or (contact_name if last_side == 1 else "Character 2"),
-            'text': disp_text,
-            'audio_text': aud_text,
-            'is_img': False
-        })
+        # 3. Non-message lines (e.g. "mystique", contact names, screenshot/image break headers):
+        # These are used purely for chat headers and screenshot image breaks.
+        # THEY ARE NEVER ADDED TO MESSAGES AND NEVER SPOKEN BY ELEVENLABS!
+        contact_name = line
+        first_non_msg = False
+        if line not in contacts_seen:
+            contacts_seen.append(line)
 
     return contact_name, messages, contacts_seen
 
@@ -569,13 +532,14 @@ def render_preview_image(body):
     page = max(0, min(page, total_pages - 1))
     
     page_msgs = messages[page * msgs_per_page : (page + 1) * msgs_per_page]
+    page_contact = page_msgs[0].get('contact_name', contact_name) if page_msgs else contact_name
     theme = (body.get('theme') or settings.get('theme') or 'light') if style == 'ios' else (body.get('wa_theme') or settings.get('wa_theme') or 'light')
     badge_count = int(body.get('badge_count') or settings.get('badge_count') or 0)
 
     canvas = render_chat_frame(
         page_msgs,
         visible_count=len(page_msgs),
-        contact_name=contact_name,
+        contact_name=page_contact,
         badge_count=badge_count,
         style=style,
         theme=theme,

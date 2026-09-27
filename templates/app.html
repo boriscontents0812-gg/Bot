@@ -1502,17 +1502,26 @@
       const imgM = line.match(/^(?:\[?([12])\]?[:\.\-\>]\s*)?img:\s*(.+)$/i);
       if (imgM) {
         const side = parseInt(imgM[1] || lastSide || 1, 10);
-        messages.push({ side, name: '', text: imgM[2].trim(), audio_text: '', is_img: true });
+        messages.push({
+          side,
+          name: '',
+          text: imgM[2].trim(),
+          audio_text: '',
+          is_img: true,
+          contact_name: contactName
+        });
         lastSide = side;
         firstNonMsg = false;
         continue;
       }
 
-      // 2. Explicit side prefix: 1: Name > Text, 1: Name: Text, 1: Text, 1. Name > Text, etc.
+      // 2. Actual conversation message: must start with side number (1 or 2)
+      // e.g. "1: Natasha > Hello", "2: Adam > Yeah", "1: Natasha: Hello", "1. Natasha > Hello", "[1] Natasha > Hello", "1: Hello"
       const sidePrefixM = line.match(/^\[?([12])\]?[:\.\-\>]\s*(.*)$/);
       if (sidePrefixM) {
         const side = parseInt(sidePrefixM[1], 10);
         const remainder = sidePrefixM[2].trim();
+        if (!remainder) continue;
         firstNonMsg = false;
 
         let name = '';
@@ -1533,7 +1542,14 @@
           audText = parts.slice(1).join('==').trim();
         }
 
-        messages.push({ side, name, text: dispText, audio_text: audText, is_img: false });
+        messages.push({
+          side,
+          name,
+          text: dispText,
+          audio_text: audText,
+          is_img: false,
+          contact_name: contactName
+        });
         lastSide = side;
         lastName = name;
         if (name && !contactsSeen.has(name)) {
@@ -1543,69 +1559,15 @@
         continue;
       }
 
-      // 3. Name: Text or Name > Text (without 1: or 2:)
-      const namedMsgM = line.match(/^([^:\>]+?)\s*[:\>]\s*(.+)$/);
-      if (namedMsgM) {
-        const nameCand = namedMsgM[1].trim();
-        const content = namedMsgM[2].trim();
-        if (firstNonMsg) {
-          contactName = nameCand;
-          firstNonMsg = false;
-        }
-        let side = 1;
-        if (nameCand.toLowerCase() === contactName.toLowerCase()) {
-          side = 1;
-        } else if (contactsSeen.has(nameCand)) {
-          const arr = Array.from(contactsSeen);
-          side = (arr.indexOf(nameCand) % 2 === 0) ? 1 : 2;
-        } else {
-          side = (lastSide === 1) ? 2 : 1;
-        }
-
-        let dispText = content;
-        let audText = content;
-        if (content.includes('==')) {
-          const parts = content.split('==');
-          dispText = parts[0].trim();
-          audText = parts.slice(1).join('==').trim();
-        }
-
-        messages.push({ side, name: nameCand, text: dispText, audio_text: audText, is_img: false });
-        lastSide = side;
-        lastName = nameCand;
-        if (!contactsSeen.has(nameCand)) {
-          contactsSeen.add(nameCand);
-          contacts.push(nameCand);
-        }
-        continue;
+      // 3. Non-message lines (e.g. "mystique", contact names, screenshot/image break headers):
+      // These are used purely for chat headers and screenshot image breaks.
+      // THEY ARE NEVER ADDED TO MESSAGES AND NEVER SPOKEN BY ELEVENLABS!
+      contactName = line;
+      firstNonMsg = false;
+      if (!contactsSeen.has(line)) {
+        contactsSeen.add(line);
+        contacts.push(line);
       }
-
-      // 4. First non-message line = Contact name
-      if (firstNonMsg) {
-        contactName = line;
-        firstNonMsg = false;
-        if (!contactsSeen.has(line)) {
-          contactsSeen.add(line);
-          contacts.push(line);
-        }
-        continue;
-      }
-
-      // 5. Continuation message without prefix
-      let dispText = line;
-      let audText = line;
-      if (line.includes('==')) {
-        const parts = line.split('==');
-        dispText = parts[0].trim();
-        audText = parts.slice(1).join('==').trim();
-      }
-      messages.push({
-        side: lastSide,
-        name: lastName || (lastSide === 1 ? contactName : 'Character 2'),
-        text: dispText,
-        audio_text: audText,
-        is_img: false
-      });
     }
 
     return { messages, contacts, contactName };

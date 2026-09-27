@@ -32,19 +32,19 @@ def run_tests():
     v_names = [v["name"] for v in voices]
     print(f"Sample voices: {v_names[:5]}")
 
-    print("\n--- 2. Testing POST /api/generate_audio with various line formats ---")
+    print("\n--- 2. Testing POST /api/generate_audio with mystique headers and breaks ---")
     script = (
-        "Natasha 💕\n"
+        "mystique\n"
         "1: Natasha > Hey Adam! Did you see the new update?\n"
         "2: Adam: Yeah Natasha, it looks amazing!\n"
-        "1: Did you hear about that?\n"
-        "And it supports continuation lines without prefixes too!\n"
-        "2: Adam > Yes == Absolutely, it generates the full transcript in stereo!"
+        "mystique\n"
+        "1: Natasha > Did you hear about that?\n"
+        "2: Adam > Yes == Absolutely, it generates the full transcript in stereo!\n"
+        "mystique"
     )
     voice_map = {
         "Natasha": "EXAVITQu4vr4xnSDxMaL", # Sarah / Natasha
-        "Adam": "pNInz6obpgDQGcFmaJgB",    # Adam
-        "Natasha 💕": "EXAVITQu4vr4xnSDxMaL"
+        "Adam": "pNInz6obpgDQGcFmaJgB"     # Adam
     }
 
     payload = {
@@ -65,8 +65,9 @@ def run_tests():
     clips = audio_data.get("clips", [])
     total_ms = audio_data.get("total_ms", 0)
     print(f"Generated {len(clips)} clips with total duration: {total_ms / 1000.0:.2f}s")
-    assert len(clips) == 5, f"Expected 5 clips, got {len(clips)}"
-    assert total_ms > 8000, f"Expected full duration > 8s, got {total_ms}ms"
+    assert len(clips) == 4, f"Expected exactly 4 conversation clips (mystique must be ignored), got {len(clips)}"
+    assert not any("mystique" in c["text"].lower() for c in clips), "mystique was erroneously included in audio clips!"
+    assert total_ms > 5000, f"Expected full duration > 5s, got {total_ms}ms"
 
     for i, c in enumerate(clips):
         print(f" - Clip {i+1} ({c['voice']}): {c['duration_ms']}ms -> {c['text'][:40]}... (audio: {c.get('audio_text', '')[:30]})")
