@@ -192,14 +192,14 @@ def convert_audio_to_wav(input_bytes_or_path, output_wav_path, sample_rate=44100
 def trim_audio_silence(
     input_wav_path: str,
     output_wav_path: str = None,
-    lead_pad_ms: int = 20,
-    trail_pad_ms: int = 25,
-    threshold: int = 350
+    lead_pad_ms: int = 0,
+    trail_pad_ms: int = 0,
+    threshold: int = None
 ) -> int:
     """
-    Trims leading and trailing digital silence/dead air from a WAV file, leaving a natural
-    cushion (lead_pad_ms and trail_pad_ms) with a 5ms smooth fade to prevent clicks.
-    Returns the new duration in milliseconds.
+    High-precision Voice Activity Detection (VAD) audio trimmer.
+    Removes all leading and trailing digital silence, MP3 encoder delay, and dead air
+    so that audio speech starts and ends EXACTLY with the corresponding message on screen.
     """
     out_path = output_wav_path or input_wav_path
     if not os.path.exists(input_wav_path) or os.path.getsize(input_wav_path) < 44:
@@ -221,38 +221,94 @@ def trim_audio_silence(
     num_samples = n * ch
     samples = struct.unpack(f"<{num_samples}h", raw)
 
-    first_frame = None
-    for i in range(n):
-        offset = i * ch
-        if any(abs(samples[offset + c]) > threshold for c in range(ch)):
-            first_frame = i
-            break
-
-    if first_frame is None:
+    # 5ms window energy analysis
+    w_size = max(1, int(r * 0.005))
+    num_w = n // w_size
+    if num_w == 0:
         return int(round(n * 1000.0 / r))
 
-    last_frame = first_frame
-    for i in range(n - 1, first_frame - 1, -1):
-        offset = i * ch
-        if any(abs(samples[offset + c]) > threshold for c in range(ch)):
-            last_frame = i
+    mono = [max(abs(samples[i * ch + c]) for c in range(ch)) for i in range(n)]
+    rms_list = []
+    peak_list = []
+    for w in range(num_w):
+        chk = mono[w * w_size : (w + 1) * w_size]
+        pk = max(chk) if chk else 0
+        rms = math.sqrt(sum(x * x for x in chk) / len(chk)) if chk else 0.0
+        rms_list.append(rms)
+        peak_list.append(pk)
+
+    # Adaptive noise floor estimation
+    sorted_rms = sorted(rms_list)
+    noise_floor = sorted_rms[max(0, int(len(sorted_rms) * 0.05))]
+    speech_rms_thresh = max(180.0, noise_floor * 3.0)
+    speech_peak_thresh = max(450, int(speech_rms_thresh * 2.2))
+
+    onset_frame = None
+    for w in range(num_w):
+        if rms_list[w] >= speech_rms_thresh or peak_list[w] >= speech_peak_thresh:
+            win_start = w * w_size
+            win_end = min(n, (w + 1) * w_size)
+            for f in range(win_start, win_end):
+                if mono[f] >= speech_peak_thresh * 0.4:
+                    onset_frame = f
+                    break
+            if onset_frame is None:
+                onset_frame = win_start
             break
+
+    offset_frame = None
+    for w in range(num_w - 1, -1, -1):
+        if rms_list[w] >= speech_rms_thresh or peak_list[w] >= speech_peak_thresh:
+            win_start = w * w_size
+            win_end = min(n, (w + 1) * w_size)
+            for f in range(win_end - 1, win_start - 1, -1):
+                if mono[f] >= speech_peak_thresh * 0.4:
+                    offset_frame = f + 1
+                    break
+            if offset_frame is None:
+                offset_frame = win_end
+            break
+
+    if onset_frame is None or offset_frame is None:
+        first_frame = None
+        for i in range(n):
+            offset = i * ch
+            if any(abs(samples[offset + c]) > 200 for c in range(ch)):
+                first_frame = i
+                break
+        if first_frame is None:
+            return int(round(n * 1000.0 / r))
+        last_frame = first_frame
+        for i in range(n - 1, first_frame - 1, -1):
+            offset = i * ch
+            if any(abs(samples[offset + c]) > 200 for c in range(ch)):
+                last_frame = i
+                break
+        onset_frame = first_frame
+        offset_frame = last_frame
 
     lead_pad_frames = int(r * (lead_pad_ms / 1000.0))
     trail_pad_frames = int(r * (trail_pad_ms / 1000.0))
 
-    start_frame = max(0, first_frame - lead_pad_frames)
-    end_frame = min(n, last_frame + trail_pad_frames + 1)
+    start_frame = max(0, onset_frame - lead_pad_frames)
+    end_frame = min(n, offset_frame + trail_pad_frames)
 
     trimmed_samples = list(samples[start_frame * ch : end_frame * ch])
     trimmed_frames = len(trimmed_samples) // ch
+    if trimmed_frames <= 0:
+        return int(round(n * 1000.0 / r))
 
-    # Apply 5ms micro-fade to start and end
-    fade_frames = min(int(r * 0.005), trimmed_frames // 2)
-    for i in range(fade_frames):
-        factor = i / float(fade_frames)
+    # Apply smooth micro-fade to start (1.5ms) and end (2ms) to eliminate all clicks/pops without audible delay
+    fade_in_frames = min(int(r * 0.0015), trimmed_frames // 2)
+    for i in range(fade_in_frames):
+        factor = i / float(fade_in_frames)
         for c in range(ch):
             trimmed_samples[i * ch + c] = int(trimmed_samples[i * ch + c] * factor)
+
+    fade_out_frames = min(int(r * 0.002), trimmed_frames // 2)
+    for i in range(fade_out_frames):
+        factor = i / float(fade_out_frames)
+        for c in range(ch):
             end_idx = (trimmed_frames - 1 - i) * ch + c
             trimmed_samples[end_idx] = int(trimmed_samples[end_idx] * factor)
 
@@ -280,10 +336,11 @@ def trim_audio_silence(
 def concat_wav_files(
     wav_list,
     output_filepath,
-    pause_ms=60,
+    pause_ms=0,
     clips_meta=None,
-    same_speaker_pause_ms=30,
-    switch_speaker_pause_ms=60
+    same_speaker_pause_ms=0,
+    switch_speaker_pause_ms=0,
+    outro_pause_ms=0
 ) -> int:
     """
     Combines a list of standard stereo WAV clips into a single stereo WAV file with tight,
@@ -351,9 +408,9 @@ def concat_wav_files(
                     # Stereo 16-bit: 2 channels * 2 bytes = 4 bytes per frame
                     out_f.writeframes(b'\x00' * (silence_samples * 4))
             else:
-                # 250ms closing room-tone / breath
-                silence_samples = int(sr * (250 / 1000.0))
-                out_f.writeframes(b'\x00' * (silence_samples * 4))
+                if outro_pause_ms > 0:
+                    silence_samples = int(sr * (outro_pause_ms / 1000.0))
+                    out_f.writeframes(b'\x00' * (silence_samples * 4))
 
     total_ms = 0
     if os.path.exists(output_filepath):
@@ -457,7 +514,7 @@ async def synthesize_clip(
                     if resp.status_code == 200 and len(resp.content) > 200:
                         target_path = output_wav_path or os.path.join(AUDIO_DIR, f"temp_{abs(hash(clean_text))}.wav")
                         dur_ms = convert_audio_to_wav(resp.content, target_path)
-                        dur_ms = trim_audio_silence(target_path, lead_pad_ms=20, trail_pad_ms=25, threshold=350)
+                        dur_ms = trim_audio_silence(target_path, lead_pad_ms=0, trail_pad_ms=0)
                         with open(target_path, "rb") as wf:
                             wav_bytes = wf.read()
                         if not output_wav_path and os.path.exists(target_path):

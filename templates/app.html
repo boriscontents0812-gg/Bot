@@ -733,16 +733,16 @@
               <div class="field-group" style="margin-bottom:0">
                 <div class="label" style="display:flex;justify-content:space-between;font-size:11px">
                   <span>Switch Turn Gap</span>
-                  <span id="val-gap-switch" style="color:var(--muted-fg);font-family:var(--font-mono)">60ms</span>
+                  <span id="val-gap-switch" style="color:var(--muted-fg);font-family:var(--font-mono)">0ms</span>
                 </div>
-                <input type="range" min="0" max="200" step="10" value="60" class="range" id="slider-gap-switch" oninput="document.getElementById('val-gap-switch').textContent = this.value + 'ms'; saveSettings()" />
+                <input type="range" min="0" max="150" step="5" value="0" class="range" id="slider-gap-switch" oninput="document.getElementById('val-gap-switch').textContent = this.value + 'ms'; saveSettings()" data-settings-key="gap_switch_ms" />
               </div>
               <div class="field-group" style="margin-bottom:0">
                 <div class="label" style="display:flex;justify-content:space-between;font-size:11px">
                   <span>Same Voice Gap</span>
-                  <span id="val-gap-same" style="color:var(--muted-fg);font-family:var(--font-mono)">30ms</span>
+                  <span id="val-gap-same" style="color:var(--muted-fg);font-family:var(--font-mono)">0ms</span>
                 </div>
-                <input type="range" min="0" max="200" step="10" value="30" class="range" id="slider-gap-same" oninput="document.getElementById('val-gap-same').textContent = this.value + 'ms'; saveSettings()" />
+                <input type="range" min="0" max="150" step="5" value="0" class="range" id="slider-gap-same" oninput="document.getElementById('val-gap-same').textContent = this.value + 'ms'; saveSettings()" data-settings-key="gap_same_ms" />
               </div>
             </div>
           </div>
@@ -954,6 +954,7 @@
               <div class="label" style="margin-bottom:6px">Model</div>
               <div class="select-wrap">
                 <select id="voice-model" class="field" onchange="onVoiceSettingChange()">
+                  <option value="eleven_v4">Eleven v4 (most emotive)</option>
                   <option value="eleven_multilingual_v2">Multilingual v2 (default)</option>
                   <option value="eleven_turbo_v2_5">Turbo v2.5 (faster)</option>
                   <option value="eleven_flash_v2_5">Flash v2.5 (fastest)</option>
@@ -1006,16 +1007,16 @@
               <input type="range" id="slider-bubble-scale" class="slider" min="110" max="135" step="1" value="120" oninput="onSyncScale(this)" data-settings-key="bubble_scale">
             </div>
             <div class="field-group">
-              <div class="slider-header"><div class="label">Max bubble width</div><span class="slider-val" id="val-maxw">58%</span></div>
-              <input type="range" class="slider" min="40" max="98" step="1" value="58" oninput="document.getElementById('val-maxw').textContent=this.value+'%'">
+              <div class="slider-header"><div class="label">Max bubble width</div><span class="slider-val" id="val-maxw">74%</span></div>
+              <input type="range" id="slider-bubble-max-pct" class="slider" min="40" max="98" step="1" value="74" oninput="document.getElementById('val-maxw').textContent=this.value+'%';refreshPreview()" data-settings-key="bubble_max_pct">
             </div>
             <div class="field-group">
               <div class="slider-header"><div class="label">Min bubble width</div><span class="slider-val" id="val-minw">120</span></div>
-              <input type="range" class="slider" min="80" max="400" step="10" value="120" oninput="document.getElementById('val-minw').textContent=this.value">
+              <input type="range" id="slider-min-bubble-w" class="slider" min="80" max="400" step="10" value="120" oninput="document.getElementById('val-minw').textContent=this.value;refreshPreview()" data-settings-key="min_bubble_w">
             </div>
             <div class="field-group">
               <div class="slider-header"><div class="label">Messages per page</div><span class="slider-val" id="val-mpp">6</span></div>
-              <input type="range" class="slider" min="1" max="12" step="1" value="6" oninput="document.getElementById('val-mpp').textContent=this.value">
+              <input type="range" id="slider-msgs-per-page" class="slider" min="1" max="12" step="1" value="6" oninput="document.getElementById('val-mpp').textContent=this.value;currentPage=0;refreshPreview()" data-settings-key="msgs_per_page">
             </div>
           </div>
         </div>
@@ -1029,7 +1030,7 @@
           <div id="header-content" class="disclosure-content hidden">
             <div class="field-group">
               <div class="slider-header"><div class="label">Name size</div><span class="slider-val" id="val-nsize">40</span></div>
-              <input type="range" class="slider" min="35" max="50" step="1" value="40" oninput="document.getElementById('val-nsize').textContent=this.value">
+              <input type="range" id="slider-name-size" class="slider" min="20" max="60" step="1" value="40" oninput="document.getElementById('val-nsize').textContent=this.value;refreshPreview()" data-settings-key="header_name_size">
             </div>
           </div>
         </div>
@@ -1682,6 +1683,7 @@
         chat_height_pct: +(document.getElementById('wa-chat-height')?.value ?? 100),
         rounded_corners: document.querySelector('#wa-corners-seg button.active')?.textContent?.trim() === 'Rounded' ? 1 : 0,
         corner_radius:   +(document.getElementById('wa-corner-radius')?.value ?? 35),
+        msgs_per_page:   +(document.getElementById('slider-msgs-per-page')?.value ?? 6),
         container_shadow: document.getElementById('wa-switch-shadow')?.classList.contains('on') ? 1 : 0,
       };
     }
@@ -1693,17 +1695,17 @@
       theme:           isDark ? 'dark' : 'light',
       bubble_scale:    +(document.getElementById('slider-bubble-scale')?.value ?? 120),
       font_size:       Math.round(46 * +(document.getElementById('slider-bubble-scale')?.value ?? 120) / 115),
-      bubble_max_pct:  +(document.querySelector('input[oninput*="val-maxw"]')?.value   ?? 58),
-      min_bubble_w:    +(document.querySelector('input[oninput*="val-minw"]')?.value   ?? 120),
+      bubble_max_pct:  +(document.getElementById('slider-bubble-max-pct')?.value ?? 74),
+      min_bubble_w:    +(document.getElementById('slider-min-bubble-w')?.value ?? 120),
       bubble_gap:      16,
       line_spacing:    6,
       padding_h:       26,
       padding_v:       18,
-      msgs_per_page:   +(document.querySelector('input[oninput*="val-mpp"]')?.value    ?? 6),
+      msgs_per_page:   +(document.getElementById('slider-msgs-per-page')?.value ?? 6),
       chat_y:          +(document.querySelector('input[oninput*="val-chaty"]')?.value  ?? 350),
       container_scale: +(document.querySelector('input[oninput*="val-cscale"]')?.value ?? 100) / 100,
       chat_top_pad:    35,
-      header_name_size:+(document.querySelector('input[oninput*="val-nsize"]')?.value  ?? 40),
+      header_name_size:+(document.getElementById('slider-name-size')?.value ?? document.querySelector('input[oninput*="val-nsize"]')?.value ?? 40),
       header_name_x:   15,
       header_name_y:   33,
       rounded_corners:       document.querySelector('#video-content .segmented button.active')?.textContent?.trim() === 'Rounded' ? 1 : 0,
@@ -1753,7 +1755,8 @@
     const { messages, contacts } = parseScript(text);
     document.getElementById('msg-count').textContent = messages.length + ' msgs';
     // totalPages will be updated from X-Total-Pages header after first preview fetch
-    totalPages = Math.max(1, Math.ceil(messages.length / 6));
+    const mpp = +(document.getElementById('slider-msgs-per-page')?.value || 6);
+    totalPages = Math.max(1, Math.ceil(messages.length / mpp));
     currentPage = 0;
     document.getElementById('page-label').textContent = `1 / ${totalPages}`;
     const cpl = document.getElementById('btn-cur-pic-label');
@@ -1925,6 +1928,7 @@
     const scale = +slider.value;
     const font  = Math.round(46 * scale / 115);
     document.getElementById('val-scale').textContent = scale + '% · font ' + font;
+    refreshPreview();
   }
 
   // ── Custom clip player ────────────────────────────────────────────────────
@@ -2087,17 +2091,17 @@
       theme:                isDark ? 'dark' : 'light',
       bubble_scale:         +(document.getElementById('slider-bubble-scale')?.value ?? 120),
       font_size:            Math.round(46 * +(document.getElementById('slider-bubble-scale')?.value ?? 120) / 115),
-      bubble_max_pct:       +(document.querySelector('input[oninput*="val-maxw"]')?.value   ?? 58),
-      min_bubble_w:         +(document.querySelector('input[oninput*="val-minw"]')?.value   ?? 120),
+      bubble_max_pct:       +(document.getElementById('slider-bubble-max-pct')?.value ?? 74),
+      min_bubble_w:         +(document.getElementById('slider-min-bubble-w')?.value ?? 120),
       bubble_gap:           16,
       line_spacing:         6,
       padding_h:            26,
       padding_v:            18,
-      msgs_per_page:        +(document.querySelector('input[oninput*="val-mpp"]')?.value    ?? 6),
+      msgs_per_page:        +(document.getElementById('slider-msgs-per-page')?.value ?? 6),
       chat_y:               +(document.querySelector('input[oninput*="val-chaty"]')?.value  ?? 350),
       container_scale:      +(document.querySelector('input[oninput*="val-cscale"]')?.value ?? 100) / 100,
       chat_top_pad:         35,
-      header_name_size:     +(document.querySelector('input[oninput*="val-nsize"]')?.value  ?? 40),
+      header_name_size:     +(document.getElementById('slider-name-size')?.value ?? document.querySelector('input[oninput*="val-nsize"]')?.value ?? 40),
       header_name_x:        15,
       header_name_y:        33,
       bubble_fade:          sw('switch-bfade'),
@@ -2113,8 +2117,8 @@
       badge_count:          +(document.getElementById('unread-badge')?.value ?? 0),
       corner_radius:        +(document.getElementById('corner-radius')?.value ?? 35),
       bg_sound_volume:      +(document.getElementById('bg-sound-volume')?.value ?? 0),
-      gap_switch_ms:        +(document.getElementById('slider-gap-switch')?.value ?? 60),
-      gap_same_ms:          +(document.getElementById('slider-gap-same')?.value ?? 30),
+      gap_switch_ms:        +(document.getElementById('slider-gap-switch')?.value ?? 0),
+      gap_same_ms:          +(document.getElementById('slider-gap-same')?.value ?? 0),
     };
   }
 
@@ -2147,8 +2151,8 @@
       gameplay_on:      sw('wa-switch-gameplay'),
       gameplay_file:    document.getElementById('wa-gameplay-select')?.value ?? '',
       gameplay_start:   document.getElementById('wa-gameplay-start')?.value ?? '0:00',
-      gap_switch_ms:    +(document.getElementById('slider-gap-switch')?.value ?? 60),
-      gap_same_ms:      +(document.getElementById('slider-gap-same')?.value ?? 30),
+      gap_switch_ms:    +(document.getElementById('slider-gap-switch')?.value ?? 0),
+      gap_same_ms:      +(document.getElementById('slider-gap-same')?.value ?? 0),
     };
   }
 
@@ -3115,6 +3119,14 @@
       if (s.bg_sound_volume !== undefined) {
         const volEl = document.getElementById('bg-sound-volume');
         if (volEl) volEl.value = s.bg_sound_volume;
+      }
+      if (s.gap_switch_ms !== undefined) {
+        const swEl = document.getElementById('slider-gap-switch');
+        if (swEl) { swEl.value = s.gap_switch_ms; document.getElementById('val-gap-switch').textContent = s.gap_switch_ms + 'ms'; }
+      }
+      if (s.gap_same_ms !== undefined) {
+        const smEl = document.getElementById('slider-gap-same');
+        if (smEl) { smEl.value = s.gap_same_ms; document.getElementById('val-gap-same').textContent = s.gap_same_ms + 'ms'; }
       }
       toggleCornerRadius();
     }

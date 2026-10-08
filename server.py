@@ -295,6 +295,14 @@ async def render_page_preview(body: dict, page: int, key: str) -> tuple[bytes, i
     if "app_type" in body_page and "style" not in body_page:
         body_page["style"] = body_page["app_type"]
     body_page["page"] = page
+
+    # Direct autonomous local renderer (high-fidelity Apple/WhatsApp canvas matching reference)
+    try:
+        img_bytes, total_pages = render_preview_image(body_page)
+        return img_bytes, total_pages
+    except Exception as e:
+        print(f"Notice: local preview rendering exception, falling back to upstream: {e}")
+
     try:
         async with httpx.AsyncClient(timeout=6.0) as client:
             resp = await client.post(
@@ -538,8 +546,9 @@ async def generate_audio(request: Request):
     clips = [r[1] for r in results]
     wav_paths = [r[2] for r in results]
 
-    switch_gap_ms = int(settings.get("gap_switch_ms") or 60)
-    same_gap_ms = int(settings.get("gap_same_ms") or 30)
+    switch_gap_ms = int(settings.get("gap_switch_ms", 0) if settings.get("gap_switch_ms") is not None else 0)
+    same_gap_ms = int(settings.get("gap_same_ms", 0) if settings.get("gap_same_ms") is not None else 0)
+    outro_gap_ms = int(settings.get("gap_outro_ms", 0) if settings.get("gap_outro_ms") is not None else 0)
 
     # Synchronize clip durations with inter-clip pauses for seamless audio & video timing
     for i in range(len(clips)):
@@ -551,7 +560,7 @@ async def generate_audio(request: Request):
             gap = same_gap_ms if is_same else switch_gap_ms
             clips[i]["duration_ms"] += gap
         else:
-            clips[i]["duration_ms"] += 250
+            clips[i]["duration_ms"] += outro_gap_ms
 
     full_audio_path = os.path.join(user_audio_dir, "audio_full.wav")
     total_ms = concat_wav_files(
@@ -559,7 +568,8 @@ async def generate_audio(request: Request):
         full_audio_path,
         clips_meta=clips,
         same_speaker_pause_ms=same_gap_ms,
-        switch_speaker_pause_ms=switch_gap_ms
+        switch_speaker_pause_ms=switch_gap_ms,
+        outro_pause_ms=outro_gap_ms
     )
 
     try:

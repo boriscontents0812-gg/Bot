@@ -12,6 +12,7 @@ import asyncio
 
 from PIL import Image
 from renderer import render_chat_frame, parse_script, render_preview_image, partition_messages_into_pages
+from audio_generator import trim_audio_silence, convert_audio_to_wav
 import config
 from config import BASE_DIR, DATA_DIR, VIDEOS_DIR, SFX_DIR
 
@@ -57,6 +58,101 @@ def has_audio_stream(filepath):
         return any('Audio:' in l for l in res.stderr.splitlines())
     except Exception:
         return False
+
+def build_synced_audio_track(messages, user_audio_dir, output_wav_path, gap_same_ms=0, gap_switch_ms=0, gap_outro_ms=0, fallback_clips=None):
+    """
+    Constructs a sample-accurate, zero-drift stereo audio track matching every message frame 1:1.
+    Removes leading and trailing dead air so speech starts and ends precisely with each DM bubble.
+    Returns: (frame_durations_s, message_start_offsets_s, total_duration_s)
+    """
+    sr = 44100
+    frame_durations_s = []
+    message_start_offsets_s = []
+    cum_s = 0.0
+
+    os.makedirs(os.path.dirname(output_wav_path), exist_ok=True)
+    with wave.open(output_wav_path, 'wb') as out_f:
+        out_f.setnchannels(2)
+        out_f.setsampwidth(2)
+        out_f.setframerate(sr)
+
+        for i, msg in enumerate(messages):
+            message_start_offsets_s.append(cum_s)
+            clip_file = os.path.join(user_audio_dir, f"clip_{i}.wav")
+
+            n_clip = 0
+            raw_clip = b''
+            if os.path.exists(clip_file) and os.path.getsize(clip_file) > 44:
+                trim_audio_silence(clip_file, lead_pad_ms=0, trail_pad_ms=0)
+                try:
+                    with wave.open(clip_file, 'rb') as wf:
+                        n_clip = wf.getnframes()
+                        fr_clip = wf.getframerate()
+                        ch_clip = wf.getnchannels()
+                        sw_clip = wf.getsampwidth()
+                        raw_clip = wf.readframes(n_clip)
+
+                    if ch_clip == 1 and sw_clip == 2 and fr_clip == sr:
+                        num_samples = len(raw_clip) // 2
+                        mono_samples = struct.unpack(f"<{num_samples}h", raw_clip)
+                        stereo_frames = bytearray(num_samples * 4)
+                        struct.pack_into(f"<{num_samples * 2}h", stereo_frames, 0, *[s for s in mono_samples for _ in (0, 1)])
+                        raw_clip = bytes(stereo_frames)
+                    elif ch_clip != 2 or sw_clip != 2 or fr_clip != sr:
+                        temp_fix = clip_file + ".sync_fix.wav"
+                        convert_audio_to_wav(clip_file, temp_fix, sample_rate=sr)
+                        with wave.open(temp_fix, 'rb') as fix_f:
+                            n_clip = fix_f.getnframes()
+                            raw_clip = fix_f.readframes(n_clip)
+                        if os.path.exists(temp_fix):
+                            try: os.remove(temp_fix)
+                            except Exception: pass
+                except Exception as e:
+                    print(f"Notice: clip_{i}.wav read error: {e}")
+                    n_clip = 0
+                    raw_clip = b''
+
+            if n_clip <= 0 or not raw_clip:
+                fallback_dur = 1.0
+                if fallback_clips and i < len(fallback_clips):
+                    fallback_dur = float(fallback_clips[i].get('duration_ms', 1000)) / 1000.0
+                n_clip = max(int(sr * 0.2), int(sr * fallback_dur))
+                raw_clip = b'\x00' * (n_clip * 4)
+
+            out_f.writeframes(raw_clip)
+
+            if i < len(messages) - 1:
+                is_same = (
+                    msg.get("side") == messages[i + 1].get("side") or
+                    (msg.get("name") and msg.get("name") == messages[i + 1].get("name"))
+                )
+                p_ms = gap_same_ms if is_same else gap_switch_ms
+            else:
+                p_ms = gap_outro_ms
+
+            pause_samples = int(sr * (p_ms / 1000.0))
+            if pause_samples > 0:
+                out_f.writeframes(b'\x00' * (pause_samples * 4))
+
+            frame_dur_s = (n_clip + pause_samples) / float(sr)
+            frame_durations_s.append(frame_dur_s)
+            cum_s += frame_dur_s
+
+    # Also keep user_audio_dir/audio_full.wav synchronized
+    user_audio_full = os.path.join(user_audio_dir, 'audio_full.wav')
+    if os.path.abspath(output_wav_path) != os.path.abspath(user_audio_full):
+        try:
+            shutil.copyfile(output_wav_path, user_audio_full)
+            mp3_path = os.path.splitext(user_audio_full)[0] + ".mp3"
+            ffmpeg_bin = get_ffmpeg()
+            subprocess.run(
+                [ffmpeg_bin, "-y", "-i", user_audio_full, "-c:a", "libmp3lame", "-ac", "2", "-b:a", "192k", mp3_path],
+                check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        except Exception:
+            pass
+
+    return frame_durations_s, message_start_offsets_s, cum_s
 
 def prepare_mixed_audio(speech_audio_path, clips, temp_dir, notif_sound=True, entrance_offsets_s=None):
     """
@@ -191,42 +287,21 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
                     'page_index': p['page_index']
                 }
 
-        gap_same_ms = int(settings.get('gap_same_ms') or 30)
-        gap_switch_ms = int(settings.get('gap_switch_ms') or 60)
+        gap_same_ms = int(settings.get('gap_same_ms', 0) if settings.get('gap_same_ms') is not None else 0)
+        gap_switch_ms = int(settings.get('gap_switch_ms', 0) if settings.get('gap_switch_ms') is not None else 0)
+        gap_outro_ms = int(settings.get('gap_outro_ms', 0) if settings.get('gap_outro_ms') is not None else 0)
 
-        frame_durations_s = []
-        message_start_offsets_s = []
-        cum_s = 0.0
-
-        for i in range(len(messages)):
-            message_start_offsets_s.append(cum_s)
-            clip_file = os.path.join(user_audio_dir, f"clip_{i}.wav")
-            clip_dur_s = 0.0
-            if os.path.exists(clip_file):
-                try:
-                    with wave.open(clip_file, "rb") as wf:
-                        clip_dur_s = wf.getnframes() / float(wf.getframerate())
-                except Exception:
-                    clip_dur_s = 0.0
-
-            if clip_dur_s <= 0.0:
-                clip_dur_s = (clips[i].get("duration_ms", 1000) / 1000.0) if (clips and i < len(clips)) else 1.0
-
-            if i < len(messages) - 1:
-                is_same = (
-                    messages[i].get("side") == messages[i + 1].get("side") or
-                    (messages[i].get("name") and messages[i].get("name") == messages[i + 1].get("name"))
-                )
-                p_ms = gap_same_ms if is_same else gap_switch_ms
-                pause_s = p_ms / 1000.0
-            else:
-                pause_s = 0.250
-
-            dur_s = clip_dur_s + pause_s
-            frame_durations_s.append(dur_s)
-            cum_s += dur_s
-
-        total_duration_s = max(1.0, sum(frame_durations_s))
+        # Build sample-accurate synced audio track matching each DM frame 1:1
+        synced_audio_wav = os.path.join(temp_dir, 'synced_audio.wav')
+        frame_durations_s, message_start_offsets_s, total_duration_s = build_synced_audio_track(
+            messages=messages,
+            user_audio_dir=user_audio_dir,
+            output_wav_path=synced_audio_wav,
+            gap_same_ms=gap_same_ms,
+            gap_switch_ms=gap_switch_ms,
+            gap_outro_ms=gap_outro_ms,
+            fallback_clips=clips
+        )
 
         # 1. Render Progressive Video Frames
         set_job_progress(key_code, True, pct=20, msg="Rendering high-fidelity chat frames...")
@@ -236,6 +311,15 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
         corner_rad = int(payload.get('corner_radius') or settings.get('corner_radius') or 0)
         container_scale = float(payload.get('container_scale') or settings.get('container_scale') or 1.0)
         notif_sound = bool(payload.get('notif_sound', False))
+
+        bubble_scale = payload.get('bubble_scale') or settings.get('bubble_scale')
+        bubble_max_pct = payload.get('bubble_max_pct') or settings.get('bubble_max_pct')
+        min_bubble_w = payload.get('min_bubble_w') or settings.get('min_bubble_w')
+        font_size_override = payload.get('font_size') or settings.get('font_size')
+        header_name_size = (
+            payload.get('header_name_size') or settings.get('header_name_size') or
+            payload.get('name_font_size') or settings.get('name_font_size')
+        )
 
         concat_lines = []
         for i in range(len(messages)):
@@ -261,7 +345,12 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
                 container_scale=container_scale,
                 corner_radius_val=corner_rad,
                 container_shadow=False,
-                show_header=info['show_header']
+                show_header=info['show_header'],
+                bubble_scale=bubble_scale,
+                bubble_max_pct=bubble_max_pct,
+                min_bubble_w=min_bubble_w,
+                font_size_override=font_size_override,
+                header_name_size=header_name_size
             )
             frame_img.save(frame_path)
 
@@ -281,20 +370,8 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
 
         # 2. Prepare Audio
         set_job_progress(key_code, True, pct=55, msg="Mixing audio and sound effects...")
-        user_audio_dir = os.path.join(DATA_DIR, 'audio', key_code)
-        
-        # Locate or synthesize speech track
-        actual_audio = None
-        if audio_full_path and os.path.exists(audio_full_path):
-            actual_audio = audio_full_path
-        else:
-            cand = os.path.join(user_audio_dir, 'audio_full.wav')
-            if os.path.exists(cand):
-                actual_audio = cand
-
-        mixed_audio_path = None
-        if actual_audio and os.path.exists(actual_audio):
-            mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound, entrance_offsets_s=message_start_offsets_s)
+        actual_audio = synced_audio_wav
+        mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound, entrance_offsets_s=message_start_offsets_s)
 
         # 3. Locate Gameplay Video
         gameplay_file = payload.get('gameplay_file', '')
@@ -355,8 +432,9 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
         filter_parts = []
         # Video overlay
         filter_parts.append(
-            f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}[bg];"
-            f"[bg][1:v]overlay=0:0[vout]"
+            f"[0:v]fps=60,scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}[bg];"
+            f"[1:v]fps=60[fg];"
+            f"[bg][fg]overlay=0:0[vout]"
         )
 
         # Audio mixing
@@ -379,6 +457,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
             cmd.extend(['-map', audio_map])
 
         cmd.extend([
+            '-r', '60',
             '-t', f'{total_duration_s:.3f}',
             '-c:v', 'libx264',
             '-pix_fmt', 'yuv420p',
@@ -489,55 +568,22 @@ async def generate_slideshow_video_task(key_code, payload, clips, audio_full_pat
             for _, (g_idx, _) in enumerate(p['messages']):
                 msg_to_page[g_idx] = p['page_index']
 
-        # 2. Calculate accurate frame durations synced to ElevenLabs audio
+        # 2. Build sample-accurate synced audio track matching each DM frame 1:1
         user_audio_dir = os.path.join(DATA_DIR, 'audio', key_code)
-        gap_same_ms = int(settings.get('gap_same_ms') or 30)
-        gap_switch_ms = int(settings.get('gap_switch_ms') or 60)
+        gap_same_ms = int(settings.get('gap_same_ms', 0) if settings.get('gap_same_ms') is not None else 0)
+        gap_switch_ms = int(settings.get('gap_switch_ms', 0) if settings.get('gap_switch_ms') is not None else 0)
+        gap_outro_ms = int(settings.get('gap_outro_ms', 0) if settings.get('gap_outro_ms') is not None else 0)
 
-        frame_durations_s = []
-        for i in range(len(messages)):
-            clip_file = os.path.join(user_audio_dir, f"clip_{i}.wav")
-            clip_dur_s = 0.0
-            if os.path.exists(clip_file):
-                try:
-                    with wave.open(clip_file, "rb") as wf:
-                        clip_dur_s = wf.getnframes() / float(wf.getframerate())
-                except Exception:
-                    clip_dur_s = 0.0
-
-            if clip_dur_s <= 0.0:
-                clip_dur_s = (clips[i].get("duration_ms", 1000) / 1000.0) if (clips and i < len(clips)) else 1.0
-
-            if i < len(messages) - 1:
-                is_same = (
-                    messages[i].get("side") == messages[i + 1].get("side") or
-                    (messages[i].get("name") and messages[i].get("name") == messages[i + 1].get("name"))
-                )
-                p_ms = gap_same_ms if is_same else gap_switch_ms
-                pause_s = p_ms / 1000.0
-            else:
-                pause_s = 0.250
-
-            dur_s = clip_dur_s + pause_s
-            frame_durations_s.append(dur_s)
-
-        # Total audio length alignment
-        total_audio_s = 0.0
-        if audio_full_path and os.path.exists(audio_full_path):
-            try:
-                with wave.open(audio_full_path, "rb") as wf:
-                    total_audio_s = wf.getnframes() / float(wf.getframerate())
-            except Exception:
-                pass
-
-        if total_audio_s > 0:
-            current_sum = sum(frame_durations_s)
-            if current_sum > 0:
-                diff = total_audio_s - current_sum
-                frame_durations_s[-1] = max(0.2, frame_durations_s[-1] + diff)
-            final_total_s = total_audio_s
-        else:
-            final_total_s = sum(frame_durations_s)
+        synced_audio_wav = os.path.join(temp_dir, 'synced_audio.wav')
+        frame_durations_s, message_start_offsets_s, final_total_s = build_synced_audio_track(
+            messages=messages,
+            user_audio_dir=user_audio_dir,
+            output_wav_path=synced_audio_wav,
+            gap_same_ms=gap_same_ms,
+            gap_switch_ms=gap_switch_ms,
+            gap_outro_ms=gap_outro_ms,
+            fallback_clips=clips
+        )
 
         # 3. Render progressive frames using the web preview engine (Apple Color Emoji, authentic iMessage bubbles)
         set_job_progress(key_code, True, pct=20, msg=f"Rendering progressive DM frames (0 of {len(messages)})...")
@@ -584,16 +630,9 @@ async def generate_slideshow_video_task(key_code, payload, clips, audio_full_pat
 
         # 5. Prepare Audio (pure voice speech track, no notification pop sound)
         set_job_progress(key_code, True, pct=70, msg="Preparing speech audio...")
-        actual_audio = None
-        if audio_full_path and os.path.exists(audio_full_path):
-            actual_audio = audio_full_path
-        else:
-            cand = os.path.join(user_audio_dir, 'audio_full.wav')
-            if os.path.exists(cand):
-                actual_audio = cand
-
+        actual_audio = synced_audio_wav
         notif_sound = bool(payload.get('notif_sound', False))
-        mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound)
+        mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound, entrance_offsets_s=message_start_offsets_s)
 
         # 6. Encode video with FFmpeg
         set_job_progress(key_code, True, pct=80, msg="Encoding animated video with FFmpeg...", elapsed_s=int(time.time() - start_time))
@@ -612,7 +651,8 @@ async def generate_slideshow_video_task(key_code, payload, clips, audio_full_pat
             audio_args = ['-c:a', 'aac']
 
         cmd.extend([
-            '-vf', 'fps=30,scale=1080:1920:flags=lanczos,format=yuv420p',
+            '-vf', 'fps=60,scale=1080:1920:flags=lanczos,format=yuv420p',
+            '-r', '60',
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-crf', '18',

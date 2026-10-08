@@ -4,11 +4,28 @@ import re
 import math
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 
-def get_font(size, bold=False):
+def get_font(size, bold=False, weight=None):
     font_candidates = []
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    assets_fonts = os.path.join(base_dir, 'assets', 'fonts')
+
+    if weight == 'medium':
+        cand_names = ['Inter-Medium.ttf', 'Inter-SemiBold.ttf', 'Inter-Regular.ttf']
+    elif weight == 'semibold' or (bold and weight != 'bold'):
+        cand_names = ['Inter-SemiBold.ttf', 'Inter-Bold.ttf', 'Inter-Medium.ttf']
+    elif bold:
+        cand_names = ['Inter-Bold.ttf', 'Inter-SemiBold.ttf']
+    else:
+        cand_names = ['Inter-Regular.ttf', 'Inter-Medium.ttf']
+
+    for name in cand_names:
+        font_candidates.append(os.path.join(assets_fonts, name))
+
     if os.name == 'nt':
         win_dir = os.environ.get('WINDIR', 'C:\\Windows')
         fonts_dir = os.path.join(win_dir, 'Fonts')
+        for name in cand_names:
+            font_candidates.append(os.path.join(fonts_dir, name))
         font_candidates.extend([
             os.path.join(fonts_dir, 'segoeuib.ttf' if bold else 'segoeui.ttf'),
             os.path.join(fonts_dir, 'arialbd.ttf' if bold else 'arial.ttf'),
@@ -17,6 +34,7 @@ def get_font(size, bold=False):
     else:
         # Linux / Vercel serverless environment
         font_candidates.extend([
+            f'/usr/share/fonts/truetype/inter/Inter-{"Bold" if bold else ("Medium" if weight == "medium" else "Regular")}.ttf',
             f'/usr/share/fonts/truetype/dejavu/DejaVuSans{"-Bold" if bold else ""}.ttf',
             f'/usr/share/fonts/truetype/liberation/LiberationSans-{"Bold" if bold else "Regular"}.ttf',
             f'/usr/share/fonts/truetype/freefont/FreeSans{"Bold" if bold else ""}.ttf',
@@ -218,41 +236,193 @@ def parse_script(text):
 
     return contact_name, messages, contacts_seen
 
-def draw_video_icon(draw, x, y, size=18, color=(0, 122, 255), outline=True):
-    if outline:
-        # Apple FaceTime outline video icon matching sample video
-        vw = int(size * 1.0)
-        vh = int(size * 1.05)
-        rad = max(2, int(size * 0.25))
-        lw = max(1, int(size * 0.11))
-        draw.rounded_rectangle([x, y, x + vw, y + vh], radius=rad, outline=color, width=lw)
-        tw = int(size * 0.42)
-        draw.line([
-            (x + vw + 2, y + int(vh * 0.24)),
-            (x + vw + 2 + tw, y + int(vh * 0.08)),
-            (x + vw + 2 + tw, y + vh - int(vh * 0.08)),
-            (x + vw + 2, y + vh - int(vh * 0.24)),
-            (x + vw + 2, y + int(vh * 0.24))
-        ], fill=color, width=lw, joint='round')
-    else:
-        bw = int(size * 0.65)
-        bh = int(size * 0.5)
-        draw.rounded_rectangle([x, y, x + bw, y + bh], radius=max(2, int(size * 0.12)), fill=color)
-        lw = int(size * 0.28)
-        draw.polygon([
-            (x + bw + 2, y + int(bh * 0.2)),
-            (x + bw + 2 + lw, y),
-            (x + bw + 2 + lw, y + bh),
-            (x + bw + 2, y + int(bh * 0.8))
-        ], fill=color)
+def render_sf_back_chevron(w, h, color=(10, 132, 255), stroke_w=2.6):
+    ss = 8
+    sw, sh = max(1, int(w * ss)), max(1, int(h * ss))
+    img = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    lw = max(1, int(stroke_w * ss))
 
-def draw_phone_icon(draw, x, y, size=16, color=(0, 122, 255)):
-    draw.rounded_rectangle([x, y, x + size, y + size], radius=3, fill=color)
+    pad_x = int(1.2 * ss)
+    pad_y = int(1.5 * ss)
 
-def render_imessage_bubble_mask(w, h, is_outgoing=False):
+    p_top = (sw - pad_x - lw // 2, pad_y + lw // 2)
+    p_mid = (pad_x + lw // 2, sh // 2)
+    p_bot = (sw - pad_x - lw // 2, sh - pad_y - lw // 2)
+
+    draw.line([p_top, p_mid, p_bot], fill=color + (255,), width=lw, joint='round')
+    rcap = lw / 2.0
+    for p in [p_top, p_mid, p_bot]:
+        draw.ellipse([p[0] - rcap, p[1] - rcap, p[0] + rcap, p[1] + rcap], fill=color + (255,))
+
+    return img.resize((max(1, int(w)), max(1, int(h))), Image.Resampling.LANCZOS)
+
+def render_sf_camera_icon(w, h, color=(10, 132, 255), stroke_w=1.9):
+    ss = 8
+    sw, sh = max(1, int(w * ss)), max(1, int(h * ss))
+    img = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    lw = max(1, int(stroke_w * ss))
+
+    pad = int(1.0 * ss)
+    bw = int((sw - pad * 2) * 0.60)
+    bh = int(sh - pad * 2)
+    bx = pad + lw // 2
+    by = pad + (sh - pad * 2 - bh) // 2
+    brad = int(bh * 0.28)
+    draw.rounded_rectangle([bx, by, bx + bw, by + bh], radius=brad, outline=color + (255,), width=lw)
+
+    lx0 = bx + bw + int(1.0 * ss)
+    lx1 = sw - pad - lw // 2
+    mid_y = sh // 2
+    lh_in = int(bh * 0.40)
+    lh_out = int(bh * 0.85)
+
+    p0 = (lx0, mid_y - lh_in // 2)
+    p1 = (lx1, mid_y - lh_out // 2)
+    p2 = (lx1, mid_y + lh_out // 2)
+    p3 = (lx0, mid_y + lh_in // 2)
+
+    draw.line([p0, p1, p2, p3, p0], fill=color + (255,), width=lw, joint='round')
+    rcap = lw / 2.0
+    for p in [p0, p1, p2, p3]:
+        draw.ellipse([p[0] - rcap, p[1] - rcap, p[0] + rcap, p[1] + rcap], fill=color + (255,))
+
+    return img.resize((max(1, int(w)), max(1, int(h))), Image.Resampling.LANCZOS)
+
+def render_sf_right_chevron(w, h, color=(142, 142, 147), stroke_w=1.3):
+    ss = 8
+    sw, sh = max(1, int(w * ss)), max(1, int(h * ss))
+    img = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    lw = max(1, int(stroke_w * ss))
+
+    pad_x = int(1.0 * ss)
+    pad_y = int(1.2 * ss)
+
+    p_top = (pad_x + lw // 2, pad_y + lw // 2)
+    p_mid = (sw - pad_x - lw // 2, sh // 2)
+    p_bot = (pad_x + lw // 2, sh - pad_y - lw // 2)
+
+    draw.line([p_top, p_mid, p_bot], fill=color + (255,), width=lw, joint='round')
+    rcap = lw / 2.0
+    for p in [p_top, p_mid, p_bot]:
+        draw.ellipse([p[0] - rcap, p[1] - rcap, p[0] + rcap, p[1] + rcap], fill=color + (255,))
+
+    return img.resize((max(1, int(w)), max(1, int(h))), Image.Resampling.LANCZOS)
+
+def render_avatar_circle(av_d, contact_name, custom_img=None, bg_color=None):
     """
-    Renders an authentic, pixel-perfect Apple iMessage bubble mask
-    with the characteristic curved beak/tail hook matching the sample video.
+    Renders an authentic, ultra-smooth Apple iOS Monogram Circle or photo avatar
+    with 8x supersampled Lanczos anti-aliasing.
+    """
+    ss = 8
+    mask_hi = Image.new('L', (av_d * ss, av_d * ss), 0)
+    d_hi = ImageDraw.Draw(mask_hi)
+    d_hi.ellipse([0, 0, av_d * ss - 1, av_d * ss - 1], fill=255)
+    mask = mask_hi.resize((av_d, av_d), Image.Resampling.LANCZOS)
+
+    if custom_img is not None:
+        try:
+            p_img = custom_img.convert('RGBA')
+            min_dim = min(p_img.size)
+            left = (p_img.width - min_dim) // 2
+            top = (p_img.height - min_dim) // 2
+            p_sq = p_img.crop((left, top, left + min_dim, top + min_dim))
+            p_sq = p_sq.resize((av_d, av_d), Image.Resampling.LANCZOS)
+            p_sq.putalpha(mask)
+            return p_sq
+        except Exception:
+            pass
+
+    grad = Image.new('RGBA', (av_d, av_d))
+    if bg_color is not None:
+        grad_fill = bg_color if len(bg_color) == 4 else (bg_color[0], bg_color[1], bg_color[2], 255)
+        grad = Image.new('RGBA', (av_d, av_d), grad_fill)
+    else:
+        for y in range(av_d):
+            t = y / float(max(1, av_d - 1))
+            r_c = int(160 * (1 - t) + 120 * t)
+            g_c = int(164 * (1 - t) + 124 * t)
+            b_c = int(172 * (1 - t) + 134 * t)
+            for x in range(av_d):
+                grad.putpixel((x, y), (r_c, g_c, b_c, 255))
+    grad.putalpha(mask)
+
+    init_letter = contact_name[0].upper() if contact_name else 'C'
+    font_sz = int(av_d * 0.48)
+    f_hi = get_font(font_sz * 4, bold=True)
+    letter_canvas = Image.new('RGBA', (av_d * 4, av_d * 4), (0, 0, 0, 0))
+    ldraw = ImageDraw.Draw(letter_canvas)
+    bbox = ldraw.textbbox((0, 0), init_letter, font=f_hi)
+    lw, lh = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    lx = (av_d * 4 - lw) // 2 - bbox[0]
+    ly = (av_d * 4 - lh) // 2 - bbox[1]
+    ldraw.text((lx, ly), init_letter, fill=(255, 255, 255, 255), font=f_hi)
+    letter_down = letter_canvas.resize((av_d, av_d), Image.Resampling.LANCZOS)
+
+    grad.alpha_composite(letter_down)
+    return grad
+
+def render_wa_back_arrow(w, h, color=(255, 255, 255), stroke_w=2.2):
+    ss = 8
+    sw, sh = max(1, int(w * ss)), max(1, int(h * ss))
+    img = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    lw = max(1, int(stroke_w * ss))
+    mid_y = sh // 2
+    d.line([(int(sw * 0.42), int(sh * 0.18)), (lw // 2 + int(1 * ss), mid_y), (int(sw * 0.42), sh - int(sh * 0.18))], fill=color + (255,), width=lw, joint='round')
+    d.line([(lw // 2 + int(1 * ss), mid_y), (sw - int(2 * ss), mid_y)], fill=color + (255,), width=lw)
+    rcap = lw / 2.0
+    for p in [(int(sw * 0.42), int(sh * 0.18)), (int(sw * 0.42), sh - int(sh * 0.18)), (sw - int(2 * ss), mid_y)]:
+        d.ellipse([p[0] - rcap, p[1] - rcap, p[0] + rcap, p[1] + rcap], fill=color + (255,))
+    return img.resize((max(1, int(w)), max(1, int(h))), Image.Resampling.LANCZOS)
+
+def render_wa_camera_icon(w, h, color=(255, 255, 255)):
+    ss = 8
+    sw, sh = max(1, int(w * ss)), max(1, int(h * ss))
+    img = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    pad = int(1 * ss)
+    bw = int((sw - pad * 2) * 0.64)
+    bh = sh - pad * 2
+    d.rounded_rectangle([pad, pad, pad + bw, pad + bh], radius=int(bh * 0.25), fill=color + (255,))
+    lx0 = pad + bw + int(1.5 * ss)
+    lx1 = sw - pad
+    mid_y = sh // 2
+    lh_in = int(bh * 0.35)
+    lh_out = int(bh * 0.85)
+    d.polygon([(lx0, mid_y - lh_in // 2), (lx1, mid_y - lh_out // 2), (lx1, mid_y + lh_out // 2), (lx0, mid_y + lh_in // 2)], fill=color + (255,))
+    return img.resize((max(1, int(w)), max(1, int(h))), Image.Resampling.LANCZOS)
+
+def render_wa_phone_icon(w, h, color=(255, 255, 255)):
+    ss = 8
+    sw, sh = max(1, int(w * ss)), max(1, int(h * ss))
+    img = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    pad = int(1 * ss)
+    pts = [
+        (pad + int((sw - pad * 2) * 0.72), pad + int((sh - pad * 2) * 0.15)),
+        (pad + int((sw - pad * 2) * 0.88), pad + int((sh - pad * 2) * 0.30)),
+        (pad + int((sw - pad * 2) * 0.78), pad + int((sh - pad * 2) * 0.45)),
+        (pad + int((sw - pad * 2) * 0.65), pad + int((sh - pad * 2) * 0.40)),
+        (pad + int((sw - pad * 2) * 0.40), pad + int((sh - pad * 2) * 0.65)),
+        (pad + int((sw - pad * 2) * 0.45), pad + int((sh - pad * 2) * 0.78)),
+        (pad + int((sw - pad * 2) * 0.30), pad + int((sh - pad * 2) * 0.88)),
+        (pad + int((sw - pad * 2) * 0.15), pad + int((sh - pad * 2) * 0.72)),
+        (pad + int((sw - pad * 2) * 0.30), pad + int((sh - pad * 2) * 0.45)),
+        (pad + int((sw - pad * 2) * 0.45), pad + int((sh - pad * 2) * 0.30)),
+    ]
+    d.polygon(pts, fill=color + (255,))
+    return img.resize((max(1, int(w)), max(1, int(h))), Image.Resampling.LANCZOS)
+
+def render_imessage_bubble_mask(w, h, is_outgoing=False, has_tail=True):
+    """
+    Renders an authentic, pixel-perfect Apple iMessage bubble mask.
+    - When has_tail=False: Smooth continuous rounded rectangle (radius ~17.5px),
+      matching intermediate clustered bubbles in reference Image 2.
+    - When has_tail=True: Authentic Apple curved beak tail, matching the
+      cluster-ending bubble in reference Image 2.
     Uses 4x supersampling with Lanczos downsampling for flawless anti-aliasing.
     """
     ss = 4
@@ -260,11 +430,16 @@ def render_imessage_bubble_mask(w, h, is_outgoing=False):
     mask = Image.new('L', (sw, sh), 0)
     draw = ImageDraw.Draw(mask)
 
-    r = min(int(36 * ss), sh // 2)
+    r = min(int(17.5 * ss), sh // 2)
+
+    if not has_tail:
+        draw.rounded_rectangle([0, 0, sw, sh], radius=r, fill=255)
+        return mask.resize((max(1, int(w)), max(1, int(h))), Image.Resampling.LANCZOS)
+
+    tail_w = int(7 * ss)
     pts = []
 
     if is_outgoing:
-        tail_w = int(14 * ss)
         body_w = sw - tail_w
         for deg in range(180, 271, 3):
             rad = math.radians(deg)
@@ -273,34 +448,37 @@ def render_imessage_bubble_mask(w, h, is_outgoing=False):
         for deg in range(270, 361, 3):
             rad = math.radians(deg)
             pts.append((body_w - r + r * math.cos(rad), r + r * math.sin(rad)))
-        tail_y0 = sh - int(24 * ss)
+
+        tail_y0 = sh - int(14.5 * ss)
         pts.append((body_w, tail_y0))
         p0 = (body_w, tail_y0)
-        p1 = (body_w + int(2 * ss), tail_y0 + int(10 * ss))
-        p2 = (body_w + int(7 * ss), sh - int(4 * ss))
-        p3 = (sw, sh)
+        p1 = (body_w + int(1.2 * ss), tail_y0 + int(6.0 * ss))
+        p2 = (body_w + int(4.0 * ss), sh - int(1.5 * ss))
+        p3 = (sw, sh - int(0.5 * ss))
         for i in range(1, 21):
             t = i / 20.0
             u = 1.0 - t
             bx = u*u*u*p0[0] + 3*u*u*t*p1[0] + 3*u*t*t*p2[0] + t*t*t*p3[0]
             by = u*u*u*p0[1] + 3*u*u*t*p1[1] + 3*u*t*t*p2[1] + t*t*t*p3[1]
             pts.append((bx, by))
-        q0 = (sw, sh)
-        q1 = (sw - int(10 * ss), sh)
-        q2 = (body_w - int(14 * ss), sh - int(13 * ss))
-        q3 = (body_w - int(34 * ss), sh)
+
+        q0 = (sw, sh - int(0.5 * ss))
+        q1 = (sw - int(4.0 * ss), sh)
+        q2 = (body_w - int(6.0 * ss), sh)
+        q3 = (body_w - int(16.0 * ss), sh)
         for i in range(1, 21):
             t = i / 20.0
             u = 1.0 - t
             bx = u*u*u*q0[0] + 3*u*u*t*q1[0] + 3*u*t*t*q2[0] + t*t*t*q3[0]
             by = u*u*u*q0[1] + 3*u*u*t*q1[1] + 3*u*t*t*q2[1] + t*t*t*q3[1]
             pts.append((bx, by))
+
         pts.append((r, sh))
         for deg in range(90, 181, 3):
             rad = math.radians(deg)
             pts.append((r + r * math.cos(rad), sh - r + r * math.sin(rad)))
+
     else:
-        tail_w = int(14 * ss)
         body_x0 = tail_w
         body_x1 = sw
         for deg in range(180, 271, 3):
@@ -314,21 +492,23 @@ def render_imessage_bubble_mask(w, h, is_outgoing=False):
         for deg in range(0, 91, 3):
             rad = math.radians(deg)
             pts.append((body_x1 - r + r * math.cos(rad), sh - r + r * math.sin(rad)))
-        pts.append((body_x0 + int(34 * ss), sh))
-        q0 = (body_x0 + int(34 * ss), sh)
-        q1 = (body_x0 - int(14 * ss), sh - int(13 * ss))
-        q2 = (int(10 * ss), sh)
-        q3 = (0, sh)
+
+        pts.append((body_x0 + int(16.0 * ss), sh))
+        q0 = (body_x0 + int(16.0 * ss), sh)
+        q1 = (body_x0 + int(6.0 * ss), sh)
+        q2 = (int(4.0 * ss), sh)
+        q3 = (0, sh - int(0.5 * ss))
         for i in range(1, 21):
             t = i / 20.0
             u = 1.0 - t
             bx = u*u*u*q0[0] + 3*u*u*t*q1[0] + 3*u*t*t*q2[0] + t*t*t*q3[0]
             by = u*u*u*q0[1] + 3*u*u*t*q1[1] + 3*u*t*t*q2[1] + t*t*t*q3[1]
             pts.append((bx, by))
-        tail_y0 = sh - int(24 * ss)
-        p0 = (0, sh)
-        p1 = (int(7 * ss), sh - int(4 * ss))
-        p2 = (body_x0 - int(2 * ss), tail_y0 + int(10 * ss))
+
+        tail_y0 = sh - int(14.5 * ss)
+        p0 = (0, sh - int(0.5 * ss))
+        p1 = (int(4.0 * ss), sh - int(1.5 * ss))
+        p2 = (body_x0 - int(1.2 * ss), tail_y0 + int(6.0 * ss))
         p3 = (body_x0, tail_y0)
         for i in range(1, 21):
             t = i / 20.0
@@ -340,10 +520,10 @@ def render_imessage_bubble_mask(w, h, is_outgoing=False):
     draw.polygon(pts, fill=255)
     return mask.resize((max(1, int(w)), max(1, int(h))), Image.Resampling.LANCZOS)
 
-def draw_ios_bubble(surf, x, y, w, h, radius, fill, is_outgoing=False):
-    """Draws an authentic Apple iMessage bubble with the smooth curved beak tail."""
+def draw_ios_bubble(surf, x, y, w, h, radius, fill, is_outgoing=False, has_tail=True):
+    """Draws an authentic Apple iMessage bubble with curved beak tail or smooth clustered rounding."""
     target_img = surf._image if hasattr(surf, '_image') else surf
-    mask = render_imessage_bubble_mask(w, h, is_outgoing=is_outgoing)
+    mask = render_imessage_bubble_mask(w, h, is_outgoing=is_outgoing, has_tail=has_tail)
     rgba_fill = fill if len(fill) == 4 else (fill[0], fill[1], fill[2], 255)
     b_surf = Image.new('RGBA', (max(1, int(w)), max(1, int(h))), rgba_fill)
     b_surf.putalpha(mask)
@@ -429,7 +609,11 @@ def render_chat_frame(
     font_size_override=None,
     contact_avatar_img=None,
     container_shadow=False,
-    show_header=True
+    show_header=True,
+    bubble_scale=None,
+    bubble_max_pct=None,
+    min_bubble_w=None,
+    header_name_size=None,
 ):
     """
     Renders an authentic, floating iOS or WhatsApp chat card onto a transparent RGBA canvas.
@@ -437,8 +621,10 @@ def render_chat_frame(
     - Dynamic card height: hugs content up to max_card_h.
     - Support for show_header=False on continuation pages to hug bubbles cleanly without re-drawing header.
     - Smooth auto-scrolling when content exceeds card bounds.
+    - Fully supports Bubble Scale, Max Bubble Width, Min Bubble Width, and Header Name Size.
     """
     scale = width / 540.0
+    scale_1080 = width / 1080.0
     canvas = Image.new('RGBA', (width, height), (0, 0, 0, 0))
 
     is_dark = (theme == 'dark')
@@ -446,17 +632,46 @@ def render_chat_frame(
     corner_radius = int(corner_radius_val * (scale / 2.0)) if corner_radius_val else 0
     card_x = (width - card_w) // 2
 
+    # Header name font size calculation
+    if header_name_size is not None:
+        try:
+            name_sz = max(10, int(float(header_name_size) * scale_1080))
+        except (ValueError, TypeError):
+            name_sz = max(10, int(27 * scale_1080))
+    else:
+        name_sz = max(10, int(27 * scale_1080))
+
+    # Bubble Scale factor (relative to 115 baseline)
+    b_scale_factor = (float(bubble_scale) / 115.0) if bubble_scale else 1.0
+
     # Bubble and font settings
-    f_size = font_size_override or int(18 * scale)
-    font_reg = get_font(f_size, bold=False)
+    if font_size_override:
+        f_val = float(font_size_override)
+        if f_val > 30:
+            f_size = max(10, int(f_val * scale_1080))
+        else:
+            f_size = max(10, int(f_val * (scale / 2.0)))
+    else:
+        base_sz = 21 if style == 'ios' else 18
+        f_size = max(10, int(base_sz * scale * b_scale_factor))
+
+    font_reg = get_font(f_size, bold=False, weight='regular')
     font_emj = get_emoji_font(f_size)
-    max_bubble_w = int(card_w * 0.74)
-    pad_h = int(14 * scale)
-    pad_v = int(11 * scale)
-    b_radius = int(18 * scale) if style == 'ios' else int(10 * scale)
+
+    # Max bubble width percentage
+    if bubble_max_pct is not None:
+        max_pct = float(bubble_max_pct)
+    else:
+        max_pct = 74.0 if style == 'ios' else 82.0
+    max_bubble_w = max(int(card_w * 0.25), min(card_w, int(card_w * (max_pct / 100.0))))
+
+    # Padding and radii scale with bubble_scale
+    pad_h = int(14 * scale * b_scale_factor)
+    pad_v = int(11 * scale * b_scale_factor)
+    b_radius = int(18 * scale * b_scale_factor) if style == 'ios' else int(10 * scale * b_scale_factor)
     gap = int(7 * scale)
 
-    # 1. Compute layout of all visible bubbles
+    # 1. Compute layout of all visible bubbles with iMessage grouping & tail logic
     dummy_img = Image.new('RGBA', (10, 10))
     dummy_draw = ImageDraw.Draw(dummy_img)
 
@@ -464,10 +679,18 @@ def render_chat_frame(
     rendered_bubbles = []
     total_content_h = 0
 
-    for msg in visible_msgs:
+    for i, msg in enumerate(visible_msgs):
         side = msg.get('side', 1)
         text = msg.get('text', '')
         is_img = msg.get('is_img', False)
+
+        is_last_of_cluster = (
+            (i == len(visible_msgs) - 1) or
+            (visible_msgs[i + 1].get('side', 1) != side) or
+            visible_msgs[i + 1].get('is_img')
+        )
+        has_tail = is_last_of_cluster
+        gap_after = (int(7.5 * scale) if is_last_of_cluster else int(3.2 * scale)) if style == 'ios' else int(7 * scale)
 
         if is_img:
             img_w = int(card_w * 0.62)
@@ -478,18 +701,21 @@ def render_chat_frame(
                 'img_path': text,
                 'bw': img_w,
                 'bh': img_h,
-                'lines': []
+                'lines': [],
+                'has_tail': False,
+                'gap_after': gap_after
             })
-            total_content_h += img_h + gap
+            total_content_h += img_h + gap_after
             continue
 
         words = text.split(' ')
         lines = []
         cur = []
+        wrap_limit = max_bubble_w - pad_h * 2 - int(8 * scale)
         for w in words:
             test_line = ' '.join(cur + [w])
             lw, _ = measure_text_with_emojis(dummy_draw, test_line, font_reg, font_emj)
-            if lw <= (max_bubble_w - pad_h * 2 - int(8 * scale)):
+            if lw <= wrap_limit:
                 cur.append(w)
             else:
                 if cur:
@@ -504,8 +730,15 @@ def render_chat_frame(
             lines = [text]
 
         line_dims = [measure_text_with_emojis(dummy_draw, l, font_reg, font_emj) for l in lines]
-        bw = max(d[0] for d in line_dims) + pad_h * 2 + (int(7 * scale) if style == 'ios' else 0)
-        bh = max(int(43 * scale), sum(d[1] for d in line_dims) + (len(lines) - 1) * int(4 * scale) + pad_v * 2)
+        tail_w = int(6.5 * scale) if has_tail else 0
+        calculated_bw = max(d[0] for d in line_dims) + pad_h * 2 + (tail_w if style == 'ios' else 0)
+
+        # Apply min_bubble_w
+        min_w = int(float(min_bubble_w) * scale_1080) if min_bubble_w else 0
+        bw = max(calculated_bw, min_w)
+        bw = min(bw, max_bubble_w)
+
+        bh = max(int(43 * scale * b_scale_factor), sum(d[1] for d in line_dims) + (len(lines) - 1) * int(4 * scale) + pad_v * 2)
 
         rendered_bubbles.append({
             'side': side,
@@ -513,12 +746,29 @@ def render_chat_frame(
             'lines': lines,
             'line_dims': line_dims,
             'bw': bw,
-            'bh': bh
+            'bh': bh,
+            'has_tail': has_tail,
+            'gap_after': gap_after
         })
-        total_content_h += bh + gap
+        total_content_h += bh + gap_after
 
     # 2. Dimensions & Positioning
-    hdr_h = (int(72.5 * scale) if style == 'ios' else int(65 * scale)) if show_header else 0
+    if show_header:
+        if style == 'ios':
+            name_font_reg = get_font(name_sz, weight='medium')
+            name_font_emj = get_emoji_font(name_sz)
+            nw, nh = measure_text_with_emojis(dummy_draw, contact_name, name_font_reg, name_font_emj)
+            av_d = int(40 * scale)
+            av_y = int(8 * scale)
+            gap_av_name = int(4 * scale)
+            name_y = av_y + av_d + gap_av_name
+            bottom_pad = max(int(10 * scale), int(nh * 0.35))
+            base_hdr_h = int(74 * scale)
+            hdr_h = max(base_hdr_h, name_y + nh + bottom_pad)
+        else:
+            hdr_h = int(60 * scale)
+    else:
+        hdr_h = 0
     min_card_h = (hdr_h + int(60 * scale)) if show_header else int(45 * scale)
     max_card_h = int(height * 0.85)
     content_area_pad = int(14 * scale) if show_header else int(10 * scale)
@@ -572,32 +822,38 @@ def render_chat_frame(
             else:
                 card_draw.rectangle([0, 0, card_w, hdr_h], fill=hdr_col)
 
-            # Back <
-            card_draw.text((int(14 * scale), int(16 * scale)), "<", fill=text_col, font=get_font(int(24 * scale), True))
+            # Back arrow (8x supersampled)
+            back_w, back_h = int(14 * scale), int(14 * scale)
+            back_img = render_wa_back_arrow(back_w, back_h, color=text_col, stroke_w=2.2 * scale)
+            card_img.alpha_composite(back_img, (int(14 * scale), (hdr_h - back_h) // 2))
 
-            # Avatar
-            av_d = int(42 * scale)
-            av_x = int(44 * scale)
+            # Avatar (8x supersampled)
+            av_d = int(38 * scale)
+            av_x = int(36 * scale)
             av_y = (hdr_h - av_d) // 2
-            card_draw.ellipse([av_x, av_y, av_x + av_d, av_y + av_d], fill=(120, 140, 150))
-            init_letter = contact_name[0].upper() if contact_name else "C"
-            av_font = get_font(int(18 * scale), bold=True)
-            abox = card_draw.textbbox((0, 0), init_letter, font=av_font)
-            card_draw.text((av_x + (av_d - (abox[2] - abox[0])) // 2, av_y + (av_d - (abox[3] - abox[1])) // 2 - int(2 * scale)), init_letter, fill=(255, 255, 255), font=av_font)
+            av_img = render_avatar_circle(av_d, contact_name, contact_avatar_img, bg_color=(120, 140, 150))
+            card_img.alpha_composite(av_img, (av_x, av_y))
 
             # Name and Status
-            n_font = get_font(int(14 * scale), bold=True)
+            n_font = get_font(name_sz if header_name_size else int(14 * scale), bold=True)
             s_font = get_font(int(11 * scale), bold=False)
+            nb = card_draw.textbbox((0, 0), contact_name, font=n_font)
+            nh_wa = nb[3] - nb[1]
             card_draw.text((av_x + av_d + int(10 * scale), av_y + int(2 * scale)), contact_name, fill=text_col, font=n_font)
-            card_draw.text((av_x + av_d + int(10 * scale), av_y + int(22 * scale)), "online", fill=sub_text_col, font=s_font)
+            card_draw.text((av_x + av_d + int(10 * scale), av_y + int(2 * scale) + nh_wa + int(3 * scale)), "online", fill=sub_text_col, font=s_font)
 
-            # Call icons
-            draw_video_icon(card_draw, card_w - int(60 * scale), int(22 * scale), size=int(16 * scale), color=text_col, outline=False)
-            draw_phone_icon(card_draw, card_w - int(30 * scale), int(22 * scale), size=int(15 * scale), color=text_col)
+            # Video and Phone Call icons (8x supersampled)
+            cam_w, cam_h = int(18 * scale), int(13 * scale)
+            cam_img = render_wa_camera_icon(cam_w, cam_h, color=text_col)
+            card_img.alpha_composite(cam_img, (card_w - int(62 * scale), (hdr_h - cam_h) // 2))
+
+            ph_w, ph_h = int(15 * scale), int(15 * scale)
+            ph_img = render_wa_phone_icon(ph_w, ph_h, color=text_col)
+            card_img.alpha_composite(ph_img, (card_w - int(30 * scale), (hdr_h - ph_h) // 2))
 
     else:
-        # iOS iMessage Card
-        card_bg_col = (28, 28, 30, 255) if is_dark else (255, 255, 255, 255)
+        # iOS iMessage Card (Exact Image 2 Pure Black #000000 Theme)
+        card_bg_col = (0, 0, 0, 255) if is_dark else (255, 255, 255, 255)
         if corner_radius > 0:
             card_draw.rounded_rectangle([0, 0, card_w, card_h], radius=corner_radius, fill=card_bg_col)
         else:
@@ -607,15 +863,20 @@ def render_chat_frame(
             hdr_bg_col = (30, 30, 32, 255) if is_dark else (244, 244, 244, 255)
             card_draw.rectangle([0, 0, card_w, hdr_h], fill=hdr_bg_col)
 
-            # Back Chevron < (sleek geometric stroke)
-            cx0, cy0 = int(18 * scale), int(25 * scale)
-            card_draw.line([
-                (cx0 + int(11 * scale), cy0),
-                (cx0 + int(1 * scale), cy0 + int(10 * scale)),
-                (cx0 + int(11 * scale), cy0 + int(20 * scale))
-            ], fill=(0, 122, 255, 255), width=max(2, int(2.5 * scale)), joint='round')
+            av_d = int(40 * scale)
+            av_x = (card_w - av_d) // 2
+            av_y = int(8 * scale)
+            cy = av_y + av_d // 2
+            blue = (10, 132, 255)
 
-            # Unread badge
+            # Back Chevron < (Apple SF Symbol geometry, 8x supersampled)
+            ch_w = max(2, int(10 * scale))
+            ch_h = max(4, int(21 * scale))
+            ch_img = render_sf_back_chevron(ch_w, ch_h, color=blue, stroke_w=2.6 * scale)
+            cx0 = int(18 * scale)
+            card_img.alpha_composite(ch_img, (cx0, cy - ch_h // 2))
+
+            # Unread badge (if enabled)
             if badge_count > 0:
                 b_font = get_font(int(13 * scale), bold=True)
                 b_text = str(badge_count)
@@ -624,59 +885,42 @@ def render_chat_frame(
                 th = bbox[3] - bbox[1]
                 badge_w = max(int(22 * scale), tw + int(12 * scale))
                 badge_h = int(22 * scale)
-                badge_x = int(36 * scale)
-                badge_y = int(22 * scale)
-                card_draw.rounded_rectangle([badge_x, badge_y, badge_x + badge_w, badge_y + badge_h], radius=badge_h // 2, fill=(0, 122, 255))
+                badge_x = cx0 + ch_w + int(6 * scale)
+                badge_y = cy - badge_h // 2
+                card_draw.rounded_rectangle([badge_x, badge_y, badge_x + badge_w, badge_y + badge_h], radius=badge_h // 2, fill=blue)
                 card_draw.text((badge_x + (badge_w - tw) // 2, badge_y + (badge_h - th) // 2 - int(2 * scale)), b_text, fill=(255, 255, 255), font=b_font)
 
-            # Center Avatar with Apple vertical subtle gradient
-            av_d = int(44 * scale)
-            av_x = (card_w - av_d) // 2
-            av_y = int(6 * scale)
+            # Center Avatar (PFP) with authentic iOS gradient and monogram (8x supersampled)
+            av_img = render_avatar_circle(av_d, contact_name, contact_avatar_img)
+            card_img.alpha_composite(av_img, (av_x, av_y))
 
-            av_mask = Image.new('L', (av_d, av_d), 0)
-            av_mdraw = ImageDraw.Draw(av_mask)
-            av_mdraw.ellipse([0, 0, av_d, av_d], fill=255)
-            av_grad = Image.new('RGBA', (av_d, av_d))
-            for y in range(av_d):
-                t = y / float(av_d)
-                r_c = int(160 * (1 - t) + 113 * t)
-                g_c = int(165 * (1 - t) + 116 * t)
-                b_c = int(176 * (1 - t) + 127 * t)
-                for x in range(av_d):
-                    av_grad.putpixel((x, y), (r_c, g_c, b_c, 255))
-            av_grad.putalpha(av_mask)
-            card_img.alpha_composite(av_grad, (av_x, av_y))
+            # FaceTime Camera Icon (right-aligned, vertically centered at cy, 8x supersampled)
+            cam_w = max(4, int(23 * scale))
+            cam_h = max(3, int(15 * scale))
+            cam_img = render_sf_camera_icon(cam_w, cam_h, color=blue, stroke_w=1.9 * scale)
+            cam_x = card_w - int(20 * scale) - cam_w
+            cam_y = cy - cam_h // 2
+            card_img.alpha_composite(cam_img, (cam_x, cam_y))
 
-            init_letter = contact_name[0].upper() if contact_name else "C"
-            av_font = get_font(int(22 * scale), bold=True)
-            abox = card_draw.textbbox((0, 0), init_letter, font=av_font)
-            card_draw.text((av_x + (av_d - (abox[2] - abox[0])) // 2, av_y + (av_d - (abox[3] - abox[1])) // 2 - int(2 * scale)), init_letter, fill=(255, 255, 255), font=av_font)
-
-            # Contact Name
-            name_font_reg = get_font(int(12 * scale), bold=False)
-            name_font_emj = get_emoji_font(int(12 * scale))
+            # Contact Name + Small Chevron > (centered below avatar circle)
+            name_font_reg = get_font(name_sz, weight='medium')
+            name_font_emj = get_emoji_font(name_sz)
             nw, nh = measure_text_with_emojis(card_draw, contact_name, name_font_reg, name_font_emj)
-            name_total_w = nw + int(8 * scale)
-            name_x = (card_w - name_total_w) // 2
+
+            rchev_w = max(3, int(name_sz * 0.35))
+            rchev_h = max(5, int(name_sz * 0.58))
+            rchev_img = render_sf_right_chevron(rchev_w, rchev_h, color=(142, 142, 147), stroke_w=max(1.0, name_sz * 0.09))
+
+            gap_name_chev = int(3.5 * scale)
+            total_name_w = nw + gap_name_chev + rchev_w
+            name_x = (card_w - total_name_w) // 2
             name_y = av_y + av_d + int(4 * scale)
             text_color = (255, 255, 255) if is_dark else (0, 0, 0)
             draw_text_with_emojis(card_draw, (name_x, name_y), contact_name, name_font_reg, name_font_emj, text_color)
+            card_img.alpha_composite(rchev_img, (name_x + nw + gap_name_chev, name_y + (nh - rchev_h) // 2))
 
-            # Small Chevron >
-            sx = name_x + nw + int(3 * scale)
-            sy = name_y + int(2.5 * scale)
-            card_draw.line([
-                (sx, sy),
-                (sx + int(2.5 * scale), sy + int(3 * scale)),
-                (sx, sy + int(6 * scale))
-            ], fill=(142, 142, 147, 255), width=max(1, int(1 * scale)), joint='round')
-
-            # FaceTime Camera Icon
-            draw_video_icon(card_draw, card_w - int(48 * scale), int(26 * scale), size=int(18 * scale), color=(0, 122, 255), outline=True)
-
-            # Divider line
-            div_col = (56, 56, 58) if is_dark else (229, 229, 229)
+            # Hairline Divider (subtle dark line in dark mode matching Image 2 reference; light gray in light mode)
+            div_col = (44, 44, 46, 255) if is_dark else (229, 229, 234, 255)
             card_draw.line([(0, hdr_h - 1), (card_w, hdr_h - 1)], fill=div_col, width=max(1, int(1 * scale)))
 
     # 5. Message Bubbles
@@ -697,7 +941,7 @@ def render_chat_frame(
             ic_draw.rounded_rectangle([0, 0, bw, bh], radius=b_radius, fill=(20, 20, 22))
             ic_draw.text((int(14 * scale), int(14 * scale)), "Attachment", fill=(255, 255, 255), font=font_reg)
             bubbles_surf.alpha_composite(img_card, (bx, curr_y))
-            curr_y += bh + gap
+            curr_y += bh + b.get('gap_after', gap)
             continue
 
         if style == 'whatsapp':
@@ -714,18 +958,21 @@ def render_chat_frame(
                 draw_wa_bubble(b_draw, bx, curr_y, bw, bh, b_radius, b_fill, is_outgoing=False)
                 tx = bx + pad_h
         else:
+            has_tail = b.get('has_tail', True)
             if side == 2:
-                bx = card_w - bw - int(16 * scale)
-                b_fill = (0, 138, 254, 255)
+                # Outgoing blue bubble (Apple Electric Blue #008CFF)
+                bx = card_w - bw - (int(16 * scale) if has_tail else int(22.5 * scale))
+                b_fill = (0, 140, 255, 255)
                 t_fill = (255, 255, 255)
-                draw_ios_bubble(bubbles_surf, bx, curr_y, bw, bh, b_radius, b_fill, is_outgoing=True)
-                tx = bx + pad_h - int(1 * scale)
+                draw_ios_bubble(bubbles_surf, bx, curr_y, bw, bh, b_radius, b_fill, is_outgoing=True, has_tail=has_tail)
+                tx = bx + pad_h
             else:
-                bx = int(16 * scale)
-                b_fill = (44, 44, 46, 255) if is_dark else (232, 232, 232, 255)
+                # Incoming grey bubble (Deeper graphite grey #282828 matching reference Image 2)
+                bx = int(16 * scale) if has_tail else int(22.5 * scale)
+                b_fill = (40, 40, 40, 255) if is_dark else (232, 232, 232, 255)
                 t_fill = (255, 255, 255) if is_dark else (0, 0, 0)
-                draw_ios_bubble(bubbles_surf, bx, curr_y, bw, bh, b_radius, b_fill, is_outgoing=False)
-                tx = bx + pad_h + int(5 * scale)
+                draw_ios_bubble(bubbles_surf, bx, curr_y, bw, bh, b_radius, b_fill, is_outgoing=False, has_tail=has_tail)
+                tx = bx + (pad_h + int(6.5 * scale) if has_tail else pad_h)
 
         # Draw lines of text
         if len(lines) == 1:
@@ -736,7 +983,7 @@ def render_chat_frame(
             draw_text_with_emojis(b_draw, (tx, ty), line, font_reg, font_emj, t_fill)
             ty += b['line_dims'][li][1] + int(4 * scale)
 
-        curr_y += bh + gap
+        curr_y += bh + b.get('gap_after', gap)
 
     # Clip bubbles cleanly to card body below header
     if corner_radius > 0:
@@ -792,6 +1039,15 @@ def render_preview_image(body):
     chat_y = body.get('chat_y') or settings.get('chat_y')
     container_shadow = bool(body.get('container_shadow') or settings.get('container_shadow', False))
 
+    bubble_scale = body.get('bubble_scale') or settings.get('bubble_scale')
+    bubble_max_pct = body.get('bubble_max_pct') or settings.get('bubble_max_pct')
+    min_bubble_w = body.get('min_bubble_w') or settings.get('min_bubble_w')
+    font_size_override = body.get('font_size') or settings.get('font_size')
+    header_name_size = (
+        body.get('header_name_size') or settings.get('header_name_size') or
+        body.get('name_font_size') or settings.get('name_font_size')
+    )
+
     canvas = render_chat_frame(
         page_msgs,
         visible_count=len(page_msgs),
@@ -805,7 +1061,12 @@ def render_preview_image(body):
         container_scale=float(body.get('container_scale', 1.0)),
         corner_radius_val=int(body.get('corner_radius', 35)),
         container_shadow=container_shadow,
-        show_header=show_header
+        show_header=show_header,
+        bubble_scale=bubble_scale,
+        bubble_max_pct=bubble_max_pct,
+        min_bubble_w=min_bubble_w,
+        font_size_override=font_size_override,
+        header_name_size=header_name_size
     )
 
     # For web preview JPEG, composite over green chroma or background

@@ -1,0 +1,526 @@
+diff --git a/video_generator.py b/video_generator.py
+index a325977..12fe952 100644
+--- a/video_generator.py
++++ b/video_generator.py
+@@ -10,8 +10,9 @@ import struct
+ import re
+ import asyncio
+ 
+-from PIL import Image
++from PIL import Image, ImageDraw
+ from renderer import render_chat_frame, parse_script, render_preview_image, partition_messages_into_pages
++from audio_generator import compute_message_timeline
+ import config
+ from config import BASE_DIR, DATA_DIR, VIDEOS_DIR, SFX_DIR
+ 
+@@ -191,42 +192,55 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
+                     'page_index': p['page_index']
+                 }
+ 
+-        gap_same_ms = int(settings.get('gap_same_ms') or 30)
+-        gap_switch_ms = int(settings.get('gap_switch_ms') or 60)
++        def parse_gap(v, default):
++            if v is None or v == "":
++                return default
++            try:
++                return max(0, int(v))
++            except (ValueError, TypeError):
++                return default
++
++        gap_same_ms = parse_gap(settings.get('gap_same_ms', payload.get('gap_same_ms')), 15)
++        gap_switch_ms = parse_gap(settings.get('gap_switch_ms', payload.get('gap_switch_ms')), 25)
++        end_pause_ms = parse_gap(settings.get('end_pause_ms', payload.get('end_pause_ms')), 180)
++
++        # Prefer ground truth timeline from clips if already synchronized to audio
++        has_precomputed_sync = (
++            clips and len(clips) == len(messages) and
++            all(isinstance(c, dict) and c.get('frame_dur_s') is not None and c.get('start_s') is not None for c in clips)
++        )
++        if has_precomputed_sync:
++            timeline = clips
++        else:
++            timeline = compute_message_timeline(
++                messages=messages,
++                clips=clips,
++                audio_dir=user_audio_dir,
++                gap_same_ms=gap_same_ms,
++                gap_switch_ms=gap_switch_ms,
++                end_pause_ms=end_pause_ms
++            )
+ 
+-        frame_durations_s = []
+-        message_start_offsets_s = []
+-        cum_s = 0.0
++        frame_durations_s = [item['frame_dur_s'] for item in timeline]
++        message_start_offsets_s = [item['start_s'] for item in timeline]
+ 
+-        for i in range(len(messages)):
+-            message_start_offsets_s.append(cum_s)
+-            clip_file = os.path.join(user_audio_dir, f"clip_{i}.wav")
+-            clip_dur_s = 0.0
+-            if os.path.exists(clip_file):
+-                try:
+-                    with wave.open(clip_file, "rb") as wf:
+-                        clip_dur_s = wf.getnframes() / float(wf.getframerate())
+-                except Exception:
+-                    clip_dur_s = 0.0
+-
+-            if clip_dur_s <= 0.0:
+-                clip_dur_s = (clips[i].get("duration_ms", 1000) / 1000.0) if (clips and i < len(clips)) else 1.0
+-
+-            if i < len(messages) - 1:
+-                is_same = (
+-                    messages[i].get("side") == messages[i + 1].get("side") or
+-                    (messages[i].get("name") and messages[i].get("name") == messages[i + 1].get("name"))
+-                )
+-                p_ms = gap_same_ms if is_same else gap_switch_ms
+-                pause_s = p_ms / 1000.0
+-            else:
+-                pause_s = 0.250
+-
+-            dur_s = clip_dur_s + pause_s
+-            frame_durations_s.append(dur_s)
+-            cum_s += dur_s
++        # Total audio length alignment
++        total_audio_s = 0.0
++        audio_cand = audio_full_path if (audio_full_path and os.path.exists(audio_full_path)) else os.path.join(user_audio_dir, 'audio_full.wav')
++        if audio_cand and os.path.exists(audio_cand):
++            try:
++                with wave.open(audio_cand, 'rb') as wf:
++                    total_audio_s = wf.getnframes() / float(wf.getframerate())
++            except Exception:
++                pass
+ 
+-        total_duration_s = max(1.0, sum(frame_durations_s))
++        if total_audio_s > 0:
++            total_duration_s = total_audio_s
++            diff = total_audio_s - sum(frame_durations_s)
++            if abs(diff) > 0.001 and len(frame_durations_s) > 0:
++                frame_durations_s[-1] = max(0.05, frame_durations_s[-1] + diff)
++        else:
++            total_duration_s = max(1.0, sum(frame_durations_s))
+ 
+         # 1. Render Progressive Video Frames
+         set_job_progress(key_code, True, pct=20, msg="Rendering high-fidelity chat frames...")
+@@ -237,7 +251,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
+         container_scale = float(payload.get('container_scale') or settings.get('container_scale') or 1.0)
+         notif_sound = bool(payload.get('notif_sound', False))
+ 
+-        concat_lines = []
++        concat_lines = ["ffconcat version 1.0"]
+         for i in range(len(messages)):
+             frame_filename = f'frame_{i:04d}.png'
+             frame_path = os.path.join(temp_dir, frame_filename)
+@@ -266,7 +280,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
+             frame_img.save(frame_path)
+ 
+             dur_s = frame_durations_s[i]
+-            concat_lines.append(f"file '{frame_filename}'\nduration {dur_s:.4f}")
++            concat_lines.append(f"file '{frame_filename}'\nduration {dur_s:.6f}")
+ 
+             pct = 20 + int(30 * (i + 1) / len(messages))
+             set_job_progress(key_code, True, pct=pct, msg=f"Rendered frame {i+1} of {len(messages)}...")
+@@ -340,7 +354,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
+             cmd.extend(['-stream_loop', '-1', '-i', gameplay_path])
+         else:
+             # Fallback black canvas
+-            cmd.extend(['-f', 'lavfi', '-i', f'color=c=0x111113:s={width}x{height}:r=30'])
++            cmd.extend(['-f', 'lavfi', '-i', f'color=c=0x111113:s={width}x{height}:r=25'])
+ 
+         # Input 1: Concat image demuxer (transparent chat frames)
+         cmd.extend(['-f', 'concat', '-safe', '0', '-i', concat_path])
+@@ -355,7 +369,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
+         filter_parts = []
+         # Video overlay
+         filter_parts.append(
+-            f"[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}[bg];"
++            f"[0:v]fps=25,scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}[bg];"
+             f"[bg][1:v]overlay=0:0[vout]"
+         )
+ 
+@@ -379,6 +393,7 @@ async def generate_video_task(key_code, payload, clips, audio_full_path):
+             cmd.extend(['-map', audio_map])
+ 
+         cmd.extend([
++            '-r', '25',
+             '-t', f'{total_duration_s:.3f}',
+             '-c:v', 'libx264',
+             '-pix_fmt', 'yuv420p',
+@@ -455,11 +470,97 @@ def get_sub_script_for_message(script_text, target_global_idx):
+             sub_lines.append(raw_line)
+     return '\n'.join(sub_lines)
+ 
+-async def generate_slideshow_video_task(key_code, payload, clips, audio_full_path, render_page_func=None):
++def compute_page_cuts(page_img, expected_msg_count, is_dark=False, show_header=True):
++    """
++    Analyzes a rendered/saved screenshot page image to locate the exact vertical cut lines
++    between each message bubble. This allows progressive reveal of DMs using 100% of the
++    authentic pixels from the saved screenshot image without re-rendering fonts or emojis.
++    Hugs each message with 20px bottom padding, matching iOS dynamic card expansion.
++    """
++    w, h = page_img.size
++    pixels = page_img.load()
++    bg_col = pixels[0, 0]
++
++    card_top = 0
++    card_bottom = h - 1
++    # Find card top and bottom along w // 2
++    for y in range(h):
++        p = pixels[w // 2, y]
++        if abs(p[0] - bg_col[0]) > 25 or abs(p[1] - bg_col[1]) > 25 or abs(p[2] - bg_col[2]) > 25:
++            card_top = y
++            break
++    for y in range(h - 1, card_top, -1):
++        p = pixels[w // 2, y]
++        if abs(p[0] - bg_col[0]) > 25 or abs(p[1] - bg_col[1]) > 25 or abs(p[2] - bg_col[2]) > 25:
++            card_bottom = y
++            break
++
++    # Find card_left and card_right at y = card_top + 30
++    check_y = min(card_top + 30, card_bottom)
++    card_left = 0
++    card_right = w - 1
++    for x in range(w):
++        p = pixels[x, check_y]
++        if abs(p[0] - bg_col[0]) > 25 or abs(p[1] - bg_col[1]) > 25 or abs(p[2] - bg_col[2]) > 25:
++            card_left = x
++            break
++    for x in range(w - 1, card_left, -1):
++        p = pixels[x, check_y]
++        if abs(p[0] - bg_col[0]) > 25 or abs(p[1] - bg_col[1]) > 25 or abs(p[2] - bg_col[2]) > 25:
++            card_right = x
++            break
++
++    header_offset = int(185 * (w / 1080.0)) if show_header else int(10 * (w / 1080.0))
++    msg_start_y = card_top + header_offset
++
++    row_has_bubble = []
++    for y in range(msg_start_y, card_bottom - 2):
++        has_b = False
++        for x in range(card_left + 18, card_right - 18, 4):
++            p = pixels[x, y]
++            if is_dark:
++                if p[0] > 20 or p[1] > 20 or p[2] > 20:
++                    has_b = True
++                    break
++            else:
++                if p[0] < 248 or p[1] < 248 or p[2] < 248:
++                    has_b = True
++                    break
++        row_has_bubble.append((y, has_b))
++
++    raw_bubbles = []
++    in_b = False
++    start_y = 0
++    for y, has_b in row_has_bubble:
++        if has_b and not in_b:
++            in_b = True
++            start_y = y
++        elif not has_b and in_b:
++            in_b = False
++            if (y - start_y) >= 15:
++                raw_bubbles.append((start_y, y - 1))
++    if in_b and (card_bottom - start_y) >= 15:
++        raw_bubbles.append((start_y, card_bottom))
++
++    bottom_pad = int(20 * (w / 1080.0))
++    if len(raw_bubbles) == expected_msg_count:
++        cuts = [min(card_bottom + 1, raw_bubbles[j][1] + bottom_pad) for j in range(expected_msg_count)]
++        return cuts
++
++    # Fallback if detection merged or split: interpolate proportionally
++    cuts = []
++    total_chat_h = card_bottom - msg_start_y
++    step = total_chat_h / max(1, expected_msg_count)
++    for j in range(expected_msg_count):
++        cuts.append(min(card_bottom + 1, int(msg_start_y + (j + 1) * step)))
++    return cuts
++
++async def generate_slideshow_video_task(key_code, payload, clips, audio_full_path, render_page_func=None, export_pics_func=None):
+     """
+     Assembles a high-fidelity synchronized animated video where each DM is revealed
+     one by one as the dialogue is spoken by ElevenLabs.
+-    - Uses exact web preview rendering with authentic Apple Color Emojis and dynamic card hugging.
++    - Pulls directly from the steady screenshot images saved locally (1.jpg, 2.jpg, ...).
++    - Guarantees 100% authentic Apple Color Emojis, square card corners, and crisp SF font.
+     - True iOS iMessage curved beak tails and styling: left grey (#e5e5ea) and right blue (#007aff).
+     - Perfect frame-accurate synchronization with audio clips and conversational pauses.
+     - Encoded to 1080x1920 Full HD MP4 with clean speech audio.
+@@ -474,6 +575,22 @@ async def generate_slideshow_video_task(key_code, payload, clips, audio_full_pat
+     try:
+         settings = payload.get('settings', {}) if isinstance(payload.get('settings'), dict) else {}
+         script_text = payload.get('script') or settings.get('script', '')
++        if payload.get('project'):
++            try:
++                from db import get_db
++                with get_db() as conn:
++                    p_row = conn.execute("SELECT data FROM projects WHERE UPPER(key_code) = ? AND name = ?", (key_code.upper(), payload['project'])).fetchone()
++                    if p_row:
++                        p_data = json.loads(p_row["data"])
++                        if not script_text:
++                            script_text = p_data.get('script') or p_data.get('settings', {}).get('script', '')
++                        p_settings = p_data.get('settings', {})
++                        if isinstance(p_settings, dict):
++                            for k, v in p_settings.items():
++                                if k not in settings:
++                                    settings[k] = v
++            except Exception:
++                pass
+         contact_name, messages, contacts = parse_script(script_text)
+         if not messages:
+             raise ValueError("Script contains no messages to generate video.")
+@@ -491,35 +608,38 @@ async def generate_slideshow_video_task(key_code, payload, clips, audio_full_pat
+ 
+         # 2. Calculate accurate frame durations synced to ElevenLabs audio
+         user_audio_dir = os.path.join(DATA_DIR, 'audio', key_code)
+-        gap_same_ms = int(settings.get('gap_same_ms') or 30)
+-        gap_switch_ms = int(settings.get('gap_switch_ms') or 60)
+ 
+-        frame_durations_s = []
+-        for i in range(len(messages)):
+-            clip_file = os.path.join(user_audio_dir, f"clip_{i}.wav")
+-            clip_dur_s = 0.0
+-            if os.path.exists(clip_file):
+-                try:
+-                    with wave.open(clip_file, "rb") as wf:
+-                        clip_dur_s = wf.getnframes() / float(wf.getframerate())
+-                except Exception:
+-                    clip_dur_s = 0.0
+-
+-            if clip_dur_s <= 0.0:
+-                clip_dur_s = (clips[i].get("duration_ms", 1000) / 1000.0) if (clips and i < len(clips)) else 1.0
+-
+-            if i < len(messages) - 1:
+-                is_same = (
+-                    messages[i].get("side") == messages[i + 1].get("side") or
+-                    (messages[i].get("name") and messages[i].get("name") == messages[i + 1].get("name"))
+-                )
+-                p_ms = gap_same_ms if is_same else gap_switch_ms
+-                pause_s = p_ms / 1000.0
+-            else:
+-                pause_s = 0.250
++        def parse_gap(v, default):
++            if v is None or v == "":
++                return default
++            try:
++                return max(0, int(v))
++            except (ValueError, TypeError):
++                return default
++
++        gap_switch_ms = parse_gap(settings.get('gap_switch_ms', payload.get('gap_switch_ms')), 25)
++        gap_same_ms = parse_gap(settings.get('gap_same_ms', payload.get('gap_same_ms')), 15)
++        end_pause_ms = parse_gap(settings.get('end_pause_ms', payload.get('end_pause_ms')), 180)
++
++        # Prefer ground truth timeline from clips if already synchronized to audio
++        has_precomputed_sync = (
++            clips and len(clips) == len(messages) and
++            all(isinstance(c, dict) and c.get('frame_dur_s') is not None and c.get('start_s') is not None for c in clips)
++        )
++        if has_precomputed_sync:
++            timeline = clips
++        else:
++            timeline = compute_message_timeline(
++                messages=messages,
++                clips=clips,
++                audio_dir=user_audio_dir,
++                gap_same_ms=gap_same_ms,
++                gap_switch_ms=gap_switch_ms,
++                end_pause_ms=end_pause_ms
++            )
+ 
+-            dur_s = clip_dur_s + pause_s
+-            frame_durations_s.append(dur_s)
++        frame_durations_s = [item['frame_dur_s'] for item in timeline]
++        message_start_offsets_s = [item['start_s'] for item in timeline]
+ 
+         # Total audio length alignment
+         total_audio_s = 0.0
+@@ -531,52 +651,122 @@ async def generate_slideshow_video_task(key_code, payload, clips, audio_full_pat
+                 pass
+ 
+         if total_audio_s > 0:
+-            current_sum = sum(frame_durations_s)
+-            if current_sum > 0:
+-                diff = total_audio_s - current_sum
+-                frame_durations_s[-1] = max(0.2, frame_durations_s[-1] + diff)
+             final_total_s = total_audio_s
++            diff = total_audio_s - sum(frame_durations_s)
++            if abs(diff) > 0.001:
++                frame_durations_s[-1] = max(0.05, frame_durations_s[-1] + diff)
+         else:
+             final_total_s = sum(frame_durations_s)
+ 
+-        # 3. Render progressive frames using the web preview engine (Apple Color Emoji, authentic iMessage bubbles)
+-        set_job_progress(key_code, True, pct=20, msg=f"Rendering progressive DM frames (0 of {len(messages)})...")
+-        sem = asyncio.Semaphore(4)
+-        rendered_frames = [None] * len(messages)
+-        completed_count = 0
+-
+-        async def render_single_frame(i):
+-            nonlocal completed_count
+-            async with sem:
+-                p_idx = msg_to_page.get(i, 0)
+-                sub_script = get_sub_script_for_message(script_text, i)
+-                body_i = payload.copy()
+-                body_i['script'] = sub_script
+-                body_i['page'] = p_idx
+-                if render_page_func:
+-                    img_bytes, _ = await render_page_func(body_i, p_idx, key_code)
+-                else:
+-                    img_bytes, _ = render_preview_image(body_i)
+-
+-                fname = f"frame_{i:04d}.jpg"
+-                fpath = os.path.join(temp_dir, fname)
+-                with open(fpath, "wb") as f:
+-                    f.write(img_bytes)
++        # 3. Pull Steady Screenshot Images from Local Storage (No re-rendering of buggy fonts/emojis)
++        set_job_progress(key_code, True, pct=20, msg="Loading steady screenshots from local storage...")
+ 
+-                rendered_frames[i] = fname
+-                completed_count += 1
+-                pct = 20 + int(45 * (completed_count / len(messages)))
+-                set_job_progress(key_code, True, pct=pct, msg=f"Rendered DM frame {completed_count} of {len(messages)}...")
++        project_name = payload.get('project') or payload.get('project_name') or settings.get('project_name') or "conversation"
++        safe_project = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(project_name)).strip('_') or "conversation"
++
++        candidate_dirs = [
++            os.path.join(DATA_DIR, 'project_pics', key_code, safe_project),
++            os.path.join(DATA_DIR, 'downloads', key_code, f"{safe_project}_pics"),
++            os.path.join(DATA_DIR, 'downloads', key_code)
++        ]
+ 
+-        await asyncio.gather(*(render_single_frame(i) for i in range(len(messages))))
++        saved_pics_dir = None
++        for cd in candidate_dirs:
++            if os.path.isdir(cd):
++                jpgs = [f for f in os.listdir(cd) if f.lower().endswith('.jpg')]
++                if len(jpgs) >= len(pages):
++                    saved_pics_dir = cd
++                    break
++
++        if not saved_pics_dir:
++            set_job_progress(key_code, True, pct=22, msg="Ensuring steady screenshots are saved...")
++            if export_pics_func:
++                export_res = await export_pics_func(payload, key_code)
++                saved_pics_dir = export_res.get("pics_dir") or os.path.join(DATA_DIR, 'downloads', key_code, f"{safe_project}_pics")
++            else:
++                user_dl_dir = os.path.join(DATA_DIR, 'downloads', key_code, f"{safe_project}_pics")
++                os.makedirs(user_dl_dir, exist_ok=True)
++                for p_idx in range(len(pages)):
++                    if render_page_func:
++                        img_bytes, _ = await render_page_func(payload, p_idx, key_code)
++                    else:
++                        body_p = payload.copy()
++                        body_p['page'] = p_idx
++                        img_bytes, _ = render_preview_image(body_p)
++                    with open(os.path.join(user_dl_dir, f"{p_idx + 1}.jpg"), "wb") as pf:
++                        pf.write(img_bytes)
++                saved_pics_dir = user_dl_dir
++
++        style = payload.get('style') or settings.get('app_type') or settings.get('style') or 'ios'
++        theme = (payload.get('theme') or settings.get('theme') or 'light') if style == 'ios' else (payload.get('wa_theme') or settings.get('wa_theme') or 'light')
++        is_dark = (theme == 'dark')
++        use_animation = bool(payload.get('use_animation', True))
++
++        rendered_frames = []
++
++        if use_animation:
++            set_job_progress(key_code, True, pct=30, msg=f"Preparing progressive DM reveal frames (0 of {len(messages)})...")
++            msg_counter = 0
++            for p_idx, page in enumerate(pages):
++                page_file = os.path.join(saved_pics_dir, f"{p_idx + 1}.jpg")
++                if not os.path.exists(page_file):
++                    alt_dir = os.path.join(DATA_DIR, 'downloads', key_code, f"{safe_project}_pics")
++                    alt_file = os.path.join(alt_dir, f"{p_idx + 1}.jpg")
++                    if os.path.exists(alt_file):
++                        page_file = alt_file
++                    else:
++                        if render_page_func:
++                            img_bytes, _ = await render_page_func(payload, p_idx, key_code)
++                        else:
++                            body_p = payload.copy()
++                            body_p['page'] = p_idx
++                            img_bytes, _ = render_preview_image(body_p)
++                        with open(page_file, "wb") as pf:
++                            pf.write(img_bytes)
++
++                page_img = Image.open(page_file).convert('RGB')
++                bg_col = page_img.getpixel((0, 0))
++                page_msgs = [m for _, m in page['messages']]
++                msg_indices = [g_idx for _, (g_idx, _) in enumerate(page['messages'])]
++                w, h = page_img.size
++
++                cuts = compute_page_cuts(page_img, len(page_msgs), is_dark=is_dark, show_header=page.get('show_header', True))
++
++                for j, g_idx in enumerate(msg_indices):
++                    cut_y = cuts[j]
++                    fname = f"frame_{g_idx:04d}.jpg"
++                    fpath = os.path.join(temp_dir, fname)
++                    if cut_y >= h:
++                        page_img.save(fpath, format='JPEG', quality=95)
++                    else:
++                        frame_j = page_img.copy()
++                        draw_j = ImageDraw.Draw(frame_j)
++                        draw_j.rectangle([0, cut_y, w, h], fill=bg_col)
++                        frame_j.save(fpath, format='JPEG', quality=95)
++                    
++                    rendered_frames.append((g_idx, fname, frame_durations_s[g_idx]))
++                    msg_counter += 1
++                    pct = 30 + int(35 * (msg_counter / len(messages)))
++                    set_job_progress(key_code, True, pct=pct, msg=f"Prepared DM frame {msg_counter} of {len(messages)}...")
++        else:
++            # Whole page slideshow mode
++            for p_idx, page in enumerate(pages):
++                page_file = os.path.join(saved_pics_dir, f"{p_idx + 1}.jpg")
++                page_img = Image.open(page_file).convert('RGB')
++                fname = f"slide_{p_idx:04d}.jpg"
++                fpath = os.path.join(temp_dir, fname)
++                page_img.save(fpath, format='JPEG', quality=95)
++                msg_indices = [g_idx for _, (g_idx, _) in enumerate(page['messages'])]
++                page_dur = sum(frame_durations_s[i] for i in msg_indices)
++                rendered_frames.append((p_idx, fname, page_dur))
+ 
+         # 4. Build concat.txt
+-        concat_lines = []
+-        for i in range(len(messages)):
+-            concat_lines.append(f"file '{rendered_frames[i]}'")
+-            concat_lines.append(f"duration {frame_durations_s[i]:.4f}")
++        concat_lines = ["ffconcat version 1.0"]
++        for _, fname, dur in rendered_frames:
++            concat_lines.append(f"file '{fname}'")
++            concat_lines.append(f"duration {dur:.6f}")
+         # Concat demuxer requirement: repeat final frame
+-        concat_lines.append(f"file '{rendered_frames[-1]}'")
++        concat_lines.append(f"file '{rendered_frames[-1][1]}'")
+ 
+         concat_path = os.path.join(temp_dir, 'concat.txt')
+         with open(concat_path, 'w', encoding='utf-8') as cf:
+@@ -593,7 +783,7 @@ async def generate_slideshow_video_task(key_code, payload, clips, audio_full_pat
+                 actual_audio = cand
+ 
+         notif_sound = bool(payload.get('notif_sound', False))
+-        mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound)
++        mixed_audio_path = prepare_mixed_audio(actual_audio, clips, temp_dir, notif_sound=notif_sound, entrance_offsets_s=message_start_offsets_s)
+ 
+         # 6. Encode video with FFmpeg
+         set_job_progress(key_code, True, pct=80, msg="Encoding animated video with FFmpeg...", elapsed_s=int(time.time() - start_time))
+@@ -608,16 +798,16 @@ async def generate_slideshow_video_task(key_code, payload, clips, audio_full_pat
+             cmd.extend(['-i', os.path.abspath(mixed_audio_path)])
+             audio_args = ['-c:a', 'aac', '-b:a', '192k']
+         else:
+-            cmd.extend(['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'])
++            cmd.extend(['-f', 'lavfi', '-i', f'anullsrc=r=44100:cl=stereo:d={final_total_s:.3f}'])
+             audio_args = ['-c:a', 'aac']
+ 
+         cmd.extend([
+-            '-vf', 'fps=30,scale=1080:1920:flags=lanczos,format=yuv420p',
++            '-t', f'{final_total_s:.3f}',
++            '-vf', 'fps=25,scale=1080:1920:flags=lanczos,format=yuv420p',
+             '-c:v', 'libx264',
+             '-preset', 'veryfast',
+             '-crf', '18',
+             *audio_args,
+-            '-shortest',
+             output_mp4
+         ])
+ 
